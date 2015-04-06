@@ -3,6 +3,7 @@ package com.flipkart.hbaseobjectmapper;
 import com.flipkart.hbaseobjectmapper.samples.Employee;
 import com.flipkart.hbaseobjectmapper.samples.EmployeeDAO;
 import com.flipkart.hbaseobjectmapper.samples.TestObjects;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.junit.After;
@@ -10,11 +11,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Set;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestAbstractHBDAO {
+    public static <T> boolean setEquals(Set<T> leftSet, Set<T> rightSet) {
+        return !(leftSet == null || rightSet == null || leftSet.size() != rightSet.size()) && rightSet.containsAll(leftSet);
+    }
+
     HBaseTestingUtility utility = new HBaseTestingUtility();
     EmployeeDAO dao;
     private List<Employee> testObjs = TestObjects.TEST_OBJECTS;
@@ -31,7 +37,7 @@ public class TestAbstractHBDAO {
     @Test
     public void testTableParticulars() {
         assertEquals(dao.getTableName(), "employees");
-        assertArrayEquals(dao.getColumnFamilies(), new String[]{"main", "optional"});
+        assertTrue(setEquals(dao.getColumnFamilies(), Sets.newHashSet("main", "optional")));
     }
 
     @Test

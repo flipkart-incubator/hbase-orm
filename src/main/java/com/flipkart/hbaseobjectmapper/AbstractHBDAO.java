@@ -11,12 +11,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class AbstractHBDAO<T extends HBRecord> {
+public abstract class AbstractHBDAO<T extends HBRecord> implements HBDAO {
 
     protected final HBObjectMapper hbObjectMapper = new HBObjectMapper();
     protected final Class<T> hbRecordClass;
@@ -34,11 +31,13 @@ public class AbstractHBDAO<T extends HBRecord> {
         this.hTable = new HTable(conf, hbTable.value());
     }
 
+    @Override
     public T get(String rowKey) throws IOException {
         Result result = this.hTable.get(new Get(Bytes.toBytes(rowKey)));
         return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
     }
 
+    @Override
     public T[] get(String[] rowKeys) throws IOException {
         List<Get> gets = new ArrayList<Get>(rowKeys.length);
         for (String rowKey : rowKeys) {
@@ -50,6 +49,12 @@ public class AbstractHBDAO<T extends HBRecord> {
             records[i] = hbObjectMapper.readValue(rowKeys[i], results[i], hbRecordClass);
         }
         return records;
+    }
+
+    public String persist(HBRecord obj) throws IOException {
+        Put put = hbObjectMapper.writeValueAsPut(obj);
+        hTable.put(put);
+        return obj.composeRowKey();
     }
 
     public Map<String, String> fetchColumnValues(String[] rowKeys, String family, String column) throws IOException {
@@ -70,18 +75,14 @@ public class AbstractHBDAO<T extends HBRecord> {
         return map;
     }
 
-    public String persist(T obj) throws IOException {
-        Put put = hbObjectMapper.writeValueAsPut(obj);
-        hTable.put(put);
-        return obj.composeRowKey();
-    }
-
+    @Override
     public String getTableName() {
         HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
         return hbTable.value();
     }
 
-    public String[] getColumnFamilies() {
-        return new String[]{"main", "optional"};
+    @Override
+    public Set<String> getColumnFamilies() {
+        return hbObjectMapper.getColumnFamilies(hbRecordClass);
     }
 }

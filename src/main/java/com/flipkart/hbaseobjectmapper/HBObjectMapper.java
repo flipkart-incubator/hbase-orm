@@ -64,6 +64,43 @@ public class HBObjectMapper {
         }
     }
 
+    private <T extends HBRecord> T mapToObj(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], byte[]>> map, Class<T> clazz) {
+        if (rowKeyBytes == null) {
+            throw new IllegalArgumentException("Row key cannot be null");
+        } else if (map == null || map.isEmpty()) {
+            throw new IllegalStateException("Could not convert from Result/Put object");
+        }
+        String rowKey = Bytes.toString(rowKeyBytes);
+        T obj;
+        try {
+            obj = clazz.newInstance();
+        } catch (InstantiationException iex) {
+            throw new IllegalArgumentException(String.format("Class %s should specify an empty constructor", clazz.getName()));
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException(String.format("Cannot instantiate empty constructor of %s", clazz.getName()));
+        }
+        try {
+            obj.parseRowKey(rowKey);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(String.format("Supplied row key \"%s\" could not be parsed", rowKey), ex);
+        }
+        try {
+            for (Field field : clazz.getDeclaredFields()) {
+                HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+                if (hbColumn == null)
+                    continue;
+                NavigableMap<byte[], byte[]> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
+                if (familyMap == null || familyMap.isEmpty())
+                    continue;
+                byte[] value = familyMap.get(Bytes.toBytes(hbColumn.column()));
+                objectSetFieldValue(obj, field, value, hbColumn.serializeAsString());
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
+        }
+        return obj;
+    }
+
     private byte[] fieldValueToByteArray(Field field, HBRecord obj, boolean serializeAsString) {
         Class<?> fieldType = field.getType();
         try {
@@ -128,9 +165,7 @@ public class HBObjectMapper {
      * @return HBase's {@link Put} object
      */
     public Put writeValueAsPut(HBRecord obj) {
-        String rowKey = composeRowKey(obj);
-        byte[] row = Bytes.toBytes(rowKey);
-        Put put = new Put(row);
+        Put put = new Put(composeRowKey(obj));
         for (NavigableMap.Entry<byte[], NavigableMap<byte[], byte[]>> fe : objToMap(obj).entrySet()) {
             byte[] family = fe.getKey();
             for (Map.Entry<byte[], byte[]> e : fe.getValue().entrySet()) {
@@ -162,8 +197,7 @@ public class HBObjectMapper {
      * @return HBase's {@link Result} object
      */
     public Result writeValueAsResult(HBRecord obj) {
-        String rowKey = composeRowKey(obj);
-        byte[] row = Bytes.toBytes(rowKey);
+        byte[] row = composeRowKey(obj);
         List<KeyValue> keyValueList = new ArrayList<KeyValue>();
         for (NavigableMap.Entry<byte[], NavigableMap<byte[], byte[]>> fe : objToMap(obj).entrySet()) {
             byte[] family = fe.getKey();
@@ -198,7 +232,10 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz) {
-        return readValueFromResult(rowKey.get(), result, clazz);
+        if (rowKey == null)
+            return readValueFromResult(result, clazz);
+        else
+            return readValueFromRowAndResult(rowKey.get(), result, clazz);
     }
 
     /**
@@ -209,7 +246,7 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(Result result, Class<T> clazz) {
-        return readValueFromResult(result.getRow(), result, clazz);
+        return readValueFromResult(result, clazz);
     }
 
     /**
@@ -221,71 +258,47 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(String rowKey, Result result, Class<T> clazz) {
-        return readValueFromResult(Bytes.toBytes(rowKey), result, clazz);
+        if (rowKey == null)
+            return readValueFromResult(result, clazz);
+        else
+            return readValueFromRowAndResult(Bytes.toBytes(rowKey), result, clazz);
     }
 
-    private <T extends HBRecord> T readValueFromResult(byte[] rowKey, Result result, Class<T> clazz) {
-        if (result == null) {
-            throw new IllegalArgumentException("Result object cannot be null");
+    private <T extends HBRecord> T readValueFromResult(Result result, Class<T> clazz) {
+        if (result == null || result.isEmpty()) {
+            return null;
         }
-        if (result.isEmpty()) {
+        if (result.getRow() == null || result.getRow().length == 0) {
+            throw new IllegalArgumentException("Result object does not have rowkey set");
+        }
+        return mapToObj(result.getRow(), result.getNoVersionMap(), clazz);
+    }
+
+    private <T extends HBRecord> T readValueFromRowAndResult(byte[] rowKey, Result result, Class<T> clazz) {
+        if (result == null || result.isEmpty()) {
             return null;
         }
         return mapToObj(rowKey, result.getNoVersionMap(), clazz);
     }
 
-    private <T extends HBRecord> T mapToObj(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], byte[]>> map, Class<T> clazz) {
-        if (rowKeyBytes == null) {
-            throw new IllegalArgumentException("Row key cannot be null");
-        } else if (map == null) {
-            throw new IllegalStateException("Could not convert from Result/Put object");
-        }
-        String rowKey = Bytes.toString(rowKeyBytes);
-        T obj;
-        try {
+    private void objectSetFieldValue(Object obj, Field field, byte[] value, boolean serializeAsString) throws InvocationTargetException, IllegalAccessException {
+        if (value == null || value.length == 0)
+            return;
+        Class fieldClazz = field.getType();
+        Object fieldValue;
+        if (serializeAsString) {
+            Constructor constructor = constructors.get(fieldClazz.getName());
             try {
-                obj = clazz.newInstance();
-            } catch (InstantiationException iex) {
-                throw new IllegalArgumentException(String.format("Class %s should specify an empty constructor", clazz.getName()));
-            } catch (IllegalAccessException e) {
-                throw new IllegalArgumentException(String.format("Cannot instantiate empty constructor of %s", clazz.getName()));
+                fieldValue = constructor.newInstance(Bytes.toString(value));
+            } catch (Exception nfex) {
+                fieldValue = null;
             }
-
-            try {
-                obj.parseRowKey(rowKey);
-            } catch (Exception ex) {
-                throw new IllegalArgumentException(String.format("Supplied row key \"%s\" could not be parsed", rowKey), ex);
-            }
-            for (Field field : clazz.getDeclaredFields()) {
-                HBColumn hbColumn = field.getAnnotation(HBColumn.class);
-                if (hbColumn == null)
-                    continue;
-                field.setAccessible(true);
-                NavigableMap<byte[], byte[]> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
-                if (familyMap == null || familyMap.size() == 0)
-                    continue;
-                byte[] value = familyMap.get(Bytes.toBytes(hbColumn.column()));
-                if (value == null || value.length == 0)
-                    continue;
-                Class fieldClazz = field.getType();
-                if (hbColumn.serializeAsString()) {
-                    Constructor constructor = constructors.get(fieldClazz.getName());
-                    Object fieldValue;
-                    try {
-                        fieldValue = constructor.newInstance(Bytes.toString(value));
-                    } catch (Exception nfex) {
-                        fieldValue = null;
-                    }
-                    field.set(obj, fieldValue);
-                } else {
-                    Method method = fromBytesMethods.get(fieldClazz.getName());
-                    field.set(obj, method.invoke(null, new Object[]{value}));
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
+        } else {
+            Method method = fromBytesMethods.get(fieldClazz.getName());
+            fieldValue = method.invoke(null, new Object[]{value});
         }
-        return obj;
+        field.setAccessible(true);
+        field.set(obj, fieldValue);
     }
 
     /**
@@ -297,7 +310,10 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(ImmutableBytesWritable rowKeyBytes, Put put, Class<T> clazz) {
-        return readValueFromPut(rowKeyBytes == null ? put.getRow() : rowKeyBytes.get(), put, clazz);
+        if (rowKeyBytes == null)
+            return readValueFromPut(put, clazz);
+        else
+            return readValueFromRowAndPut(rowKeyBytes.get(), put, clazz);
     }
 
 
@@ -310,10 +326,13 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(String rowKey, Put put, Class<T> clazz) {
-        return readValueFromPut(Bytes.toBytes(rowKey), put, clazz);
+        if (rowKey == null)
+            return readValueFromPut(put, clazz);
+        else
+            return readValueFromRowAndPut(Bytes.toBytes(rowKey), put, clazz);
     }
 
-    private <T extends HBRecord> T readValueFromPut(byte[] rowKey, Put put, Class<T> clazz) {
+    private <T extends HBRecord> T readValueFromRowAndPut(byte[] rowKey, Put put, Class<T> clazz) {
         Map<byte[], List<KeyValue>> rawMap = put.getFamilyMap();
         NavigableMap<byte[], NavigableMap<byte[], byte[]>> map = new TreeMap<byte[], NavigableMap<byte[], byte[]>>(Bytes.BYTES_COMPARATOR);
         for (Map.Entry<byte[], List<KeyValue>> e : rawMap.entrySet()) {
@@ -328,6 +347,16 @@ public class HBObjectMapper {
         return mapToObj(rowKey, map, clazz);
     }
 
+    private <T extends HBRecord> T readValueFromPut(Put put, Class<T> clazz) {
+        if (put == null || put.isEmpty()) {
+            return null;
+        }
+        if (put.getRow() == null || put.getRow().length == 0) {
+            throw new IllegalArgumentException("Put object does not have rowkey set");
+        }
+        return readValueFromRowAndPut(put.getRow(), put, clazz);
+    }
+
     /**
      * Converts HBase's {@link Put} object to a bean-like object. Use-cases: Reducer test cases
      *
@@ -336,7 +365,7 @@ public class HBObjectMapper {
      * @return Bean-like object
      */
     public <T extends HBRecord> T readValue(Put put, Class<T> clazz) {
-        return readValueFromPut(put.getRow(), put, clazz);
+        return readValueFromPut(put, clazz);
     }
 
     /**
@@ -347,20 +376,31 @@ public class HBObjectMapper {
      */
     public ImmutableBytesWritable getRowKey(HBRecord obj) {
         if (obj == null) {
-            throw new IllegalArgumentException("Cannot accept null objects");
+            throw new NullPointerException("Cannot compose row key for null objects");
         }
-        String rowKey = composeRowKey(obj);
-        return Util.strToIbw(rowKey);
+        return new ImmutableBytesWritable(composeRowKey(obj));
     }
 
-    private String composeRowKey(HBRecord obj) {
+    private byte[] composeRowKey(HBRecord obj) {
         String rowKey;
         try {
             rowKey = obj.composeRowKey();
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Error while composing row key for object " + obj);
+            throw new IllegalArgumentException("Error while composing row key for object " + obj, ex);
         }
-        return rowKey;
+        if (rowKey == null || rowKey.isEmpty()) {
+            throw new NullPointerException("Row key composed for object " + obj + " is null");
+        }
+        return Bytes.toBytes(rowKey);
     }
 
+    public <T extends HBRecord> Set<String> getColumnFamilies(Class<T> clazz) {
+        Set<String> columnFamilySet = new HashSet<String>();
+        for (Field field : clazz.getDeclaredFields()) {
+            HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+            if (hbColumn == null) continue;
+            columnFamilySet.add(hbColumn.family());
+        }
+        return columnFamilySet;
+    }
 }
