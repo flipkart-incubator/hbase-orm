@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.*;
 
-public abstract class AbstractHBDAO<T extends HBRecord> implements HBDAO {
+public abstract class AbstractHBDAO<T extends HBRecord> {
 
     protected final HBObjectMapper hbObjectMapper = new HBObjectMapper();
     protected final Class<T> hbRecordClass;
@@ -31,13 +31,11 @@ public abstract class AbstractHBDAO<T extends HBRecord> implements HBDAO {
         this.hTable = new HTable(conf, hbTable.value());
     }
 
-    @Override
     public T get(String rowKey) throws IOException {
         Result result = this.hTable.get(new Get(Bytes.toBytes(rowKey)));
         return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
     }
 
-    @Override
     public T[] get(String[] rowKeys) throws IOException {
         List<Get> gets = new ArrayList<Get>(rowKeys.length);
         for (String rowKey : rowKeys) {
@@ -75,13 +73,11 @@ public abstract class AbstractHBDAO<T extends HBRecord> implements HBDAO {
         return map;
     }
 
-    @Override
     public String getTableName() {
         HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
         return hbTable.value();
     }
 
-    @Override
     public Set<String> getColumnFamilies() {
         return hbObjectMapper.getColumnFamilies(hbRecordClass);
     }
