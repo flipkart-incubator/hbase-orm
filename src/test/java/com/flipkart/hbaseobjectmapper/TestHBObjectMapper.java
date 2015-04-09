@@ -1,6 +1,6 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.samples.*;
+import com.flipkart.hbaseobjectmapper.entities.*;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -14,11 +14,11 @@ import static org.junit.Assert.*;
 public class TestHBObjectMapper {
 
     HBObjectMapper hbMapper = new HBObjectMapper();
-    List<Employee> testObjs = TestObjects.TEST_OBJECTS;
+    List<Citizen> testObjs = TestObjects.citizenList;
 
     @Test
     public void testHBObjectMapper() {
-        for (Employee obj : testObjs) {
+        for (Citizen obj : testObjs) {
             System.out.printf("Original object: %s%n", obj);
             testResult(obj);
             testResultWithRow(obj);
@@ -34,7 +34,7 @@ public class TestHBObjectMapper {
         end = System.currentTimeMillis();
         System.out.printf("Time taken for POJO->Result = %dms%n", end - start);
         start = System.currentTimeMillis();
-        Employee pFromResult = hbMapper.readValue(result, Employee.class);
+        Citizen pFromResult = hbMapper.readValue(result, Citizen.class);
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result", p, pFromResult);
         System.out.printf("Time taken for Result->POJO = %dms%n%n", end - start);
@@ -45,7 +45,7 @@ public class TestHBObjectMapper {
         Result result = hbMapper.writeValueAsResult(Arrays.asList(p)).get(0);
         ImmutableBytesWritable rowKey = Util.strToIbw(p.composeRowKey());
         start = System.currentTimeMillis();
-        Employee pFromResult = hbMapper.readValue(rowKey, result, Employee.class);
+        Citizen pFromResult = hbMapper.readValue(rowKey, result, Citizen.class);
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result+Row", p, pFromResult);
         System.out.printf("Time taken for Result+Row->POJO = %dms%n%n", end - start);
@@ -58,7 +58,7 @@ public class TestHBObjectMapper {
         end = System.currentTimeMillis();
         System.out.printf("Time taken for POJO->Put = %dms%n", end - start);
         start = System.currentTimeMillis();
-        Employee pFromPut = hbMapper.readValue(put, Employee.class);
+        Citizen pFromPut = hbMapper.readValue(put, Citizen.class);
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
         System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
@@ -69,7 +69,7 @@ public class TestHBObjectMapper {
         Put put = hbMapper.writeValueAsPut(p);
         ImmutableBytesWritable rowKey = Util.strToIbw(p.composeRowKey());
         start = System.currentTimeMillis();
-        Employee pFromPut = hbMapper.readValue(rowKey, put, Employee.class);
+        Citizen pFromPut = hbMapper.readValue(rowKey, put, Citizen.class);
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
         System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
@@ -77,9 +77,9 @@ public class TestHBObjectMapper {
 
     @Test
     public void testInvalidRow() {
-        Employee e = testObjs.get(0);
+        Citizen e = testObjs.get(0);
         try {
-            hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Employee.class);
+            hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Citizen.class);
             fail("Invalid row key should've thrown " + IllegalArgumentException.class.getName());
         } catch (IllegalArgumentException ex) {
             System.out.println("Exception was thrown as expected: " + ex.getMessage());
@@ -124,19 +124,19 @@ public class TestHBObjectMapper {
     @Test
     public void testNullResults() {
         Result nullResult = null, emptyResult = new Result();
-        Employee nullEmployee = hbMapper.readValue(nullResult, Employee.class);
-        assertNull("Null Result object should return null", nullEmployee);
-        Employee emptyEmployee = hbMapper.readValue(emptyResult, Employee.class);
-        assertNull("Empty Result object should return null", emptyEmployee);
+        Citizen nullCitizen = hbMapper.readValue(nullResult, Citizen.class);
+        assertNull("Null Result object should return null", nullCitizen);
+        Citizen emptyCitizen = hbMapper.readValue(emptyResult, Citizen.class);
+        assertNull("Empty Result object should return null", emptyCitizen);
     }
 
     @Test
     public void testNullPuts() {
         Put nullPut = null, emptyPut = new Put();
-        Employee nullEmployee = hbMapper.readValue(nullPut, Employee.class);
-        assertNull("Null Put object should return null", nullEmployee);
-        Employee emptyEmployee = hbMapper.readValue(emptyPut, Employee.class);
-        assertNull("Empty Put object should return null", emptyEmployee);
+        Citizen nullCitizen = hbMapper.readValue(nullPut, Citizen.class);
+        assertNull("Null Put object should return null", nullCitizen);
+        Citizen emptyCitizen = hbMapper.readValue(emptyPut, Citizen.class);
+        assertNull("Empty Put object should return null", emptyCitizen);
     }
 
     @Test

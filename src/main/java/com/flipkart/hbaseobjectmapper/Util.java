@@ -18,4 +18,8 @@ public class Util {
         }
         return ibwList;
     }
+
+    public static String ibwToStr(ImmutableBytesWritable ibw) {
+        return ibw == null ? null : Bytes.toString(ibw.get());
+    }
 }

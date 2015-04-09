@@ -1,13 +1,15 @@
-package com.flipkart.hbaseobjectmapper.samples;
+package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 
-public class TwoFieldsMappedToSameColumn implements HBRecord {
+public class NoEmptyConstructor implements HBRecord {
     @HBColumn(family = "a", column = "b")
-    private Integer i = 1;
-    @HBColumn(family = "a", column = "b")
-    private Integer j = 2;
+    private Integer i;
+
+    public NoEmptyConstructor(int i) {
+        this.i = i;
+    }
 
     @Override
     public String composeRowKey() {

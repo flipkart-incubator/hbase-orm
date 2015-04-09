@@ -1,4 +1,4 @@
-package com.flipkart.hbaseobjectmapper.samples;
+package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
@@ -10,8 +10,8 @@ import java.math.BigDecimal;
 
 @ToString
 @EqualsAndHashCode
-@HBTable("employees")
-public class Employee implements HBRecord {
+@HBTable("citizens")
+public class Citizen implements HBRecord {
     private String countryCode;
     private Integer empId;
     @HBColumn(family = "main", column = "name")
@@ -33,10 +33,10 @@ public class Employee implements HBRecord {
     @HBColumn(family = "optional", column = "pincode", serializeAsString = true)
     private Integer pincode;
 
-    public Employee() {
+    public Citizen() {
     }
 
-    public Employee(String countryCode, Integer empId, String name, Short age, Integer sal, Boolean isFullTime, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode) {
+    public Citizen(String countryCode, Integer empId, String name, Short age, Integer sal, Boolean isFullTime, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode) {
         this.countryCode = countryCode;
         this.empId = empId;
         this.name = name;
@@ -58,5 +58,51 @@ public class Employee implements HBRecord {
         String[] pieces = rowKey.split("#");
         this.countryCode = pieces[0];
         this.empId = Integer.parseInt(pieces[1]);
+    }
+
+    // Getter methods:
+
+    public String getCountryCode() {
+        return countryCode;
+    }
+
+    public Integer getEmpId() {
+        return empId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Integer getSal() {
+        return sal;
+    }
+
+    public Boolean isFullTime() {
+        return isFullTime;
+    }
+
+    public Float getF1() {
+        return f1;
+    }
+
+    public Double getF2() {
+        return f2;
+    }
+
+    public Long getF3() {
+        return f3;
+    }
+
+    public BigDecimal getF4() {
+        return f4;
+    }
+
+    public Integer getPincode() {
+        return pincode;
+    }
+
+    public Short getAge() {
+        return age;
     }
 }

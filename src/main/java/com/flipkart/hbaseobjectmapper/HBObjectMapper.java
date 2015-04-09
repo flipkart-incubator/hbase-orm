@@ -5,6 +5,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 
 import java.lang.reflect.*;
 import java.math.BigDecimal;
@@ -402,5 +403,17 @@ public class HBObjectMapper {
             columnFamilySet.add(hbColumn.family());
         }
         return columnFamilySet;
+    }
+
+    public Pair<ImmutableBytesWritable, Result> writeValueAsRowKeyResultPair(HBRecord obj) {
+        return new Pair<ImmutableBytesWritable, Result>(this.getRowKey(obj), this.writeValueAsResult(obj));
+    }
+
+    public List<Pair<ImmutableBytesWritable, Result>> writeValueAsRowKeyResultPair(List<? extends HBRecord> objs) {
+        List<Pair<ImmutableBytesWritable, Result>> pairList = new ArrayList<Pair<ImmutableBytesWritable, Result>>(objs.size());
+        for (HBRecord obj : objs) {
+            pairList.add(writeValueAsRowKeyResultPair(obj));
+        }
+        return pairList;
     }
 }

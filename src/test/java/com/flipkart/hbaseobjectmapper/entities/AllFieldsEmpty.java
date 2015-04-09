@@ -1,15 +1,13 @@
-package com.flipkart.hbaseobjectmapper.samples;
+package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 
-public class NoEmptyConstructor implements HBRecord {
-    @HBColumn(family = "a", column = "b")
-    private Integer i;
-
-    public NoEmptyConstructor(int i) {
-        this.i = i;
-    }
+public class AllFieldsEmpty implements HBRecord {
+    @HBColumn(family = "f", column = "a")
+    private Integer a;
+    @HBColumn(family = "f", column = "b")
+    private Integer b;
 
     @Override
     public String composeRowKey() {

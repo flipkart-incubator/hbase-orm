@@ -1,8 +1,8 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.samples.Employee;
-import com.flipkart.hbaseobjectmapper.samples.EmployeeDAO;
-import com.flipkart.hbaseobjectmapper.samples.TestObjects;
+import com.flipkart.hbaseobjectmapper.daos.CitizenDAO;
+import com.flipkart.hbaseobjectmapper.daos.CitizenSummaryDAO;
+import com.flipkart.hbaseobjectmapper.entities.Citizen;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -22,29 +22,35 @@ public class TestAbstractHBDAO {
     }
 
     HBaseTestingUtility utility = new HBaseTestingUtility();
-    EmployeeDAO dao;
-    private List<Employee> testObjs = TestObjects.TEST_OBJECTS;
+    CitizenDAO citizenDao;
+    CitizenSummaryDAO citizenSummaryDAO;
+    private List<Citizen> testObjs = TestObjects.citizenList;
 
     @Before
     public void setup() throws Exception {
         utility.startMiniCluster();
-        utility.createTable("employees".getBytes(), new byte[][]{"main".getBytes(), "optional".getBytes()});
+        utility.createTable("citizens".getBytes(), new byte[][]{"main".getBytes(), "optional".getBytes()});
+        utility.createTable("citizen_summary".getBytes(), new byte[][]{"a".getBytes()});
         Configuration configuration = utility.getConfiguration();
-        dao = new EmployeeDAO(configuration) {
+        citizenDao = new CitizenDAO(configuration) {
+        };
+        citizenSummaryDAO = new CitizenSummaryDAO(configuration) {
         };
     }
 
     @Test
     public void testTableParticulars() {
-        assertEquals(dao.getTableName(), "employees");
-        assertTrue(setEquals(dao.getColumnFamilies(), Sets.newHashSet("main", "optional")));
+        assertEquals(citizenDao.getTableName(), "citizens");
+        assertEquals(citizenSummaryDAO.getTableName(), "citizen_summary");
+        assertTrue(setEquals(citizenDao.getColumnFamilies(), Sets.newHashSet("main", "optional")));
+        assertTrue(setEquals(citizenSummaryDAO.getColumnFamilies(), Sets.newHashSet("a")));
     }
 
     @Test
     public void testHBaseDAO() throws Exception {
-        for (Employee e : testObjs) {
-            String rowKey = dao.persist(e);
-            Employee pe = dao.get(rowKey);
+        for (Citizen e : testObjs) {
+            String rowKey = citizenDao.persist(e);
+            Citizen pe = citizenDao.get(rowKey);
             assertEquals("Entry got corrupted upon persisting and fetching back", pe, e);
         }
     }
