@@ -1,6 +1,9 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.entities.*;
+import com.flipkart.hbaseobjectmapper.entities.AllFieldsEmpty;
+import com.flipkart.hbaseobjectmapper.entities.Citizen;
+import com.flipkart.hbaseobjectmapper.entities.NoEmptyConstructor;
+import com.flipkart.hbaseobjectmapper.entities.TwoFieldsMappedToSameColumn;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;

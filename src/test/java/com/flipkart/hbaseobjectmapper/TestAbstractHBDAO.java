@@ -17,14 +17,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestAbstractHBDAO {
-    public static <T> boolean setEquals(Set<T> leftSet, Set<T> rightSet) {
-        return !(leftSet == null || rightSet == null || leftSet.size() != rightSet.size()) && rightSet.containsAll(leftSet);
-    }
-
     HBaseTestingUtility utility = new HBaseTestingUtility();
     CitizenDAO citizenDao;
     CitizenSummaryDAO citizenSummaryDAO;
     private List<Citizen> testObjs = TestObjects.citizenList;
+
+    public static <T> boolean setEquals(Set<T> leftSet, Set<T> rightSet) {
+        return !(leftSet == null || rightSet == null || leftSet.size() != rightSet.size()) && rightSet.containsAll(leftSet);
+    }
 
     @Before
     public void setup() throws Exception {

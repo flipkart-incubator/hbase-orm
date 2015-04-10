@@ -13,6 +13,11 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.*;
 
+/**
+ * A <i>Data Access Object</i> class that enables simpler random access of HBase rows
+ *
+ * @param <T> The entity that maps to an HBase row
+ */
 public abstract class AbstractHBDAO<T extends HBRecord> {
 
     protected final HBObjectMapper hbObjectMapper = new HBObjectMapper();

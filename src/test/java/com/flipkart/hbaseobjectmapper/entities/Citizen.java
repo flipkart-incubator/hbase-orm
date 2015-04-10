@@ -2,6 +2,7 @@ package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
+import com.flipkart.hbaseobjectmapper.HBRowKey;
 import com.flipkart.hbaseobjectmapper.HBTable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -12,16 +13,18 @@ import java.math.BigDecimal;
 @EqualsAndHashCode
 @HBTable("citizens")
 public class Citizen implements HBRecord {
+    @HBRowKey
     private String countryCode;
-    private Integer empId;
+    @HBRowKey
+    private Integer uid;
     @HBColumn(family = "main", column = "name")
     private String name;
     @HBColumn(family = "optional", column = "age")
     private Short age;
     @HBColumn(family = "optional", column = "salary")
     private Integer sal;
-    @HBColumn(family = "optional", column = "fte")
-    private Boolean isFullTime;
+    @HBColumn(family = "optional", column = "iph")
+    private Boolean isPassportHolder;
     @HBColumn(family = "optional", column = "f1")
     private Float f1;
     @HBColumn(family = "optional", column = "f2")
@@ -36,13 +39,13 @@ public class Citizen implements HBRecord {
     public Citizen() {
     }
 
-    public Citizen(String countryCode, Integer empId, String name, Short age, Integer sal, Boolean isFullTime, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode) {
+    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode) {
         this.countryCode = countryCode;
-        this.empId = empId;
+        this.uid = uid;
         this.name = name;
         this.age = age;
         this.sal = sal;
-        this.isFullTime = isFullTime;
+        this.isPassportHolder = isPassportHolder;
         this.f1 = f1;
         this.f2 = f2;
         this.f3 = f3;
@@ -51,13 +54,13 @@ public class Citizen implements HBRecord {
     }
 
     public String composeRowKey() {
-        return String.format("%s#%d", countryCode, empId);
+        return String.format("%s#%d", countryCode, uid);
     }
 
     public void parseRowKey(String rowKey) {
         String[] pieces = rowKey.split("#");
         this.countryCode = pieces[0];
-        this.empId = Integer.parseInt(pieces[1]);
+        this.uid = Integer.parseInt(pieces[1]);
     }
 
     // Getter methods:
@@ -66,8 +69,8 @@ public class Citizen implements HBRecord {
         return countryCode;
     }
 
-    public Integer getEmpId() {
-        return empId;
+    public Integer getUid() {
+        return uid;
     }
 
     public String getName() {
@@ -78,8 +81,8 @@ public class Citizen implements HBRecord {
         return sal;
     }
 
-    public Boolean isFullTime() {
-        return isFullTime;
+    public Boolean isPassportHolder() {
+        return isPassportHolder;
     }
 
     public Float getF1() {

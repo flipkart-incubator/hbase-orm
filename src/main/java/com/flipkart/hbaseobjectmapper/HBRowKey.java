@@ -6,10 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Maps an entity to a table in HBase
+ * Indicates that the annotated field (in part or full) forms row key
  */
-@Target(ElementType.TYPE)
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface HBTable {
-    String value();
+public @interface HBRowKey {
 }
