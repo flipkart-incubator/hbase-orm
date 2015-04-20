@@ -128,4 +128,16 @@ pe.setPincode(560034);
 citizenDao.persist(pe);
 ```
 
+## Releases
 
+The change log can be found in the [releases](../../releases) section.
+
+## Feature requests and bugs
+
+If you intend to request a feature and report a bug, you may use [Github Issues for hbase-object-mapper](../../issues).
+
+## License
+
+Copyright 2015 Flipkart Internet Pvt Ltd.
+
+Licensed under the [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or it's source code except in compliance with the License.
