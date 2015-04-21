@@ -32,10 +32,8 @@ public class TestAbstractHBDAO {
         utility.createTable("citizens".getBytes(), new byte[][]{"main".getBytes(), "optional".getBytes()});
         utility.createTable("citizen_summary".getBytes(), new byte[][]{"a".getBytes()});
         Configuration configuration = utility.getConfiguration();
-        citizenDao = new CitizenDAO(configuration) {
-        };
-        citizenSummaryDAO = new CitizenSummaryDAO(configuration) {
-        };
+        citizenDao = new CitizenDAO(configuration);
+        citizenSummaryDAO = new CitizenSummaryDAO(configuration);
     }
 
     @Test
