@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
