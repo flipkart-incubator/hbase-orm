@@ -2,10 +2,19 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <name>HBase Object Mapper</name>
+    <description>A Java-annotation based object mapper that helps convert your bean-like objects to HBase's data types
+        (and vice-versa) for use in Map/Reduce jobs involving HBase tables (and their unit tests). Helps define Data
+        Access Objects for HBase entities
+    </description>
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
     <version>1.0.3</version>
+    <url>https://github.com/flipkart-incubator/hbase-object-mapper#readme</url>
+    <scm>
+        <url>https://github.com/flipkart-incubator/hbase-object-mapper</url>
+    </scm>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -15,7 +24,7 @@
     <developers>
         <developer>
             <name>Manu Manjunath</name>
-            <email>manu.manjunath@flipkart.com</email>
+            <email>manu.m.karnataki@gmail.com</email>
         </developer>
     </developers>
     <properties>
@@ -23,6 +32,12 @@
         <version.hadoop>2.0.0-cdh4.5.0</version.hadoop>
         <version.hbase>0.94.6-cdh4.5.0</version.hbase>
     </properties>
+    <distributionManagement>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
     <dependencies>
         <!-- Application dependencies -->
         <dependency>
@@ -109,6 +124,31 @@
                     <source>1.6</source>
                     <target>1.6</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.10.3</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.8.2</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.4</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
