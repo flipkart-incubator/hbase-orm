@@ -118,14 +118,37 @@ See file [TestCitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmappe
 ## HBase ORM
 Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. Nevertheless, you can use this library as an HBase-ORM too.
 
-For example:
+This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
 
 ```java
-org.apache.hadoop.conf.Configuration configuration = getConf();
-CitizenDAO citizenDao = new CitizenDAO(configuration) {};
+import org.apache.hadoop.conf.Configuration;
+
+public class CitizenDAO extends AbstractHBDAO<Citizen> {
+    
+    public CitizenDAO(Configuration conf) throws IOException {
+        super(conf);
+    }
+}
+```
+Once defined, you can access, manipulate and persist a row of `citizens` HBase table as below:
+
+```
+Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Configuration
+CitizenDAO citizenDao = new CitizenDAO(configuration);
 Citizen pe = citizenDao.get("IND#1");
 pe.setPincode(560034);
 citizenDao.persist(pe);
+```
+
+## Maven
+Include below within the `dependencies` section of your `pom.xml`:
+
+```xml
+<dependency>
+	<groupId>com.flipkart</groupId>
+	<artifactId>hbase-object-mapper</artifactId>
+	<version>1.0.3</version>
+</dependency>
 ```
 
 ## Releases
