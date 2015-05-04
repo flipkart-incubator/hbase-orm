@@ -3,10 +3,7 @@ package com.flipkart.hbaseobjectmapper;
 import com.google.common.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
@@ -60,6 +57,32 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
         return obj.composeRowKey();
     }
 
+
+    public void delete(String rowKey) throws IOException {
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+        this.hTable.delete(delete);
+    }
+
+    public void delete(HBRecord obj) throws IOException {
+        this.delete(obj.composeRowKey());
+    }
+
+    public void delete(String[] rowKeys) throws IOException {
+        List<Delete> deletes = new ArrayList<Delete>(rowKeys.length);
+        for (String rowKey : rowKeys) {
+            deletes.add(new Delete(Bytes.toBytes(rowKey)));
+        }
+        this.hTable.delete(deletes);
+    }
+
+    public void delete(HBRecord[] objs) throws IOException {
+        String[] rowKeys = new String[objs.length];
+        for (int i = 0; i < objs.length; i++) {
+            rowKeys[i] = objs[i].composeRowKey();
+        }
+        this.delete(rowKeys);
+    }
+
     public Map<String, String> fetchColumnValues(String[] rowKeys, String family, String column) throws IOException {
         List<Get> gets = new ArrayList<Get>(rowKeys.length);
         for (String rowKey : rowKeys) {
@@ -85,5 +108,9 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
 
     public Set<String> getColumnFamilies() {
         return hbObjectMapper.getColumnFamilies(hbRecordClass);
+    }
+
+    public HTable getHBaseTable() {
+        return hTable;
     }
 }

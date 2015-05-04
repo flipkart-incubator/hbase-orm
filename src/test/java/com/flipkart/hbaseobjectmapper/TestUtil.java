@@ -6,6 +6,8 @@ import org.apache.hadoop.mrunit.types.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class TestUtil {
     private static HBObjectMapper hbObjectMapper = new HBObjectMapper();
@@ -20,5 +22,19 @@ public class TestUtil {
             pairList.add(writeValueAsRowKeyResultPair(obj));
         }
         return pairList;
+    }
+
+    public static <T> boolean setEquals(Set<T> leftSet, Set<T> rightSet) {
+        return !(leftSet == null || rightSet == null || leftSet.size() != rightSet.size()) && rightSet.containsAll(leftSet);
+    }
+
+    public static <K, V> boolean mapEquals(Map<K, V> leftMap, Map<K, V> rightMap) {
+        if (leftMap == null || rightMap == null || leftMap.size() != rightMap.size()) return false;
+        for (K key : leftMap.keySet()) {
+            V value1 = leftMap.get(key);
+            V value2 = rightMap.get(key);
+            if (!value1.equals(value2)) return false;
+        }
+        return true;
     }
 }
