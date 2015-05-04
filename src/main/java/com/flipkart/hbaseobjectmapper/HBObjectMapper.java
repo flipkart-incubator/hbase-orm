@@ -1,5 +1,7 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -29,7 +31,7 @@ public class HBObjectMapper {
         }
     };
 
-    private static final Map<Class, Class> nativeCounterParts = new HashMap<Class, Class>() {
+    private static final BiMap<Class, Class> nativeCounterParts = HashBiMap.create(new HashMap<Class, Class>() {
         {
             put(Boolean.class, boolean.class);
             put(Short.class, short.class);
@@ -38,7 +40,7 @@ public class HBObjectMapper {
             put(Float.class, float.class);
             put(Double.class, double.class);
         }
-    };
+    });
 
     private Map<String, Method> fromBytesMethods, toBytesMethods;
     private Map<String, Constructor> constructors;
@@ -66,19 +68,13 @@ public class HBObjectMapper {
     }
 
     private <T extends HBRecord> T mapToObj(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], byte[]>> map, Class<T> clazz) {
-        if (rowKeyBytes == null) {
-            throw new IllegalArgumentException("Row key cannot be null");
-        } else if (map == null || map.isEmpty()) {
-            throw new IllegalStateException("Could not convert from Result/Put object");
-        }
         String rowKey = Bytes.toString(rowKeyBytes);
         T obj;
+        validateHBClass(clazz);
         try {
             obj = clazz.newInstance();
-        } catch (InstantiationException iex) {
-            throw new IllegalArgumentException(String.format("Class %s should specify an empty constructor", clazz.getName()));
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException(String.format("Cannot instantiate empty constructor of %s", clazz.getName()));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Error while instantiating empty constructor of " + clazz.getName(), ex);
         }
         try {
             obj.parseRowKey(rowKey);
@@ -96,13 +92,25 @@ public class HBObjectMapper {
                 byte[] value = familyMap.get(Bytes.toBytes(hbColumn.column()));
                 objectSetFieldValue(obj, field, value, hbColumn.serializeAsString());
             }
-        } catch (Exception e) {
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
+        } catch (InvocationTargetException e) {
             throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
         }
         return obj;
     }
 
-    private byte[] fieldValueToByteArray(Field field, HBRecord obj, boolean serializeAsString) {
+    private boolean isFieldNull(Field field, HBRecord obj) {
+        try {
+            field.setAccessible(true);
+            return field.get(obj) == null;
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException("Field " + field.getName() + " could not be accessed", e);
+        }
+    }
+
+    private byte[] getFieldValueAsByteArray(Field field, HBRecord obj, boolean serializeAsString) {
+        field.setAccessible(true);
         Class<?> fieldType = field.getType();
         try {
             if (!toBytesMethods.containsKey(fieldType.getName())) {
@@ -110,50 +118,97 @@ public class HBObjectMapper {
             }
             Method toBytesMethod = toBytesMethods.get(fieldType.getName());
             Object fieldValue = field.get(obj);
-            if (fieldValue == null) return null;
+            if (fieldValue == null)
+                return null;
             Object fieldValueBytes = serializeAsString ? Bytes.toBytes(String.valueOf(fieldValue)) : toBytesMethod.invoke(obj, fieldValue);
             return (byte[]) fieldValueBytes;
         } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException("Bug in library code. Contact developer", e);
+            throw new IllegalStateException("Bug in library code. Contact developer", e);
         } catch (InvocationTargetException e) {
-            throw new IllegalArgumentException(String.format("Error occurred while calling %s.fieldValueToByteArray(%s)", Bytes.class.getName(), fieldType.getName()), e);
+            throw new IllegalStateException(String.format("HBase's %s class is not behaving as expected", Bytes.class.getName()), e);
+        }
+    }
+
+    private <T extends HBRecord> void validateHBClass(Class<T> clazz) {
+        Constructor constructor;
+        try {
+            Set<Pair<String, String>> columns = new HashSet<Pair<String, String>>();
+            constructor = clazz.getDeclaredConstructor();
+            int numOfHBColumns = 0, numOfHBRowKeys = 0;
+            for (Field field : clazz.getDeclaredFields()) {
+                validateHBColumnField(clazz, field);
+                if (field.isAnnotationPresent(HBRowKey.class)) {
+                    numOfHBRowKeys++;
+                }
+                HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+                if (hbColumn == null)
+                    continue;
+                numOfHBColumns++;
+                if (!columns.add(new Pair<String, String>(hbColumn.family(), hbColumn.column()))) {
+                    throw new IllegalArgumentException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
+                }
+            }
+            if (numOfHBColumns == 0) {
+                throw new IllegalArgumentException(String.format("Class %s doesn't even have a single column annotated with %s", clazz.getName(), HBColumn.class.getName()));
+            }
+            if (numOfHBRowKeys == 0) {
+                throw new IllegalArgumentException(String.format("Class %s doesn't even have a single column annotated with %s", clazz.getName(), HBRowKey.class.getName()));
+            }
+
+        } catch (NoSuchMethodException e) {
+            throw new IllegalArgumentException(String.format("Class %s needs to specify an empty constructor", clazz.getName()));
+        }
+        if (!Modifier.isPublic(constructor.getModifiers())) {
+            throw new IllegalArgumentException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
+        }
+
+    }
+
+    private <T extends HBRecord> void validateHBColumnField(Class<T> clazz, Field field) {
+        int modifiers = field.getModifiers();
+        if (Modifier.isTransient(modifiers) || Modifier.isStatic(modifiers)) {
+            throw new IllegalArgumentException(String.format("In class \"%s\", the field \"%s\" is annotated with \"%s\", but is declared as static/transient", clazz.getName(), field.getName(), HBColumn.class.getName()));
+        }
+        Class<?> fieldClazz = field.getType();
+        if (fieldClazz.isPrimitive()) {
+            String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz)) : "";
+            throw new IllegalArgumentException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), clazz.getName(), fieldClazz.getName(), suggestion));
+        }
+        if (!fromBytesMethods.containsKey(fieldClazz.getName())) {
+            throw new IllegalArgumentException(String.format("Field %s in class %s is of unsupported type (%s). List of supported types: %s", field.getName(), clazz.getName(), fieldClazz.getName(), fromBytesMethods.keySet()));
         }
     }
 
     private NavigableMap<byte[], NavigableMap<byte[], byte[]>> objToMap(HBRecord obj) {
-        Class clazz = obj.getClass();
+        Class<? extends HBRecord> clazz = obj.getClass();
+        validateHBClass(clazz);
         NavigableMap<byte[], NavigableMap<byte[], byte[]>> map = new TreeMap<byte[], NavigableMap<byte[], byte[]>>(Bytes.BYTES_COMPARATOR);
-        int numColumnsToWrite = 0;
+        int numOfFieldsToWrite = 0;
         for (Field field : clazz.getDeclaredFields()) {
             HBColumn hbColumn = field.getAnnotation(HBColumn.class);
-            if (hbColumn == null) {
+            boolean isRowKey = field.isAnnotationPresent(HBRowKey.class);
+            if (hbColumn == null && !isRowKey)
                 continue;
+            if (isRowKey) {
+                if (isFieldNull(field, obj))
+                    throw new IllegalArgumentException("Field " + field.getName() + " is null (fields part of row key cannot be null)");
             }
-            int modifiers = field.getModifiers();
-            if (Modifier.isTransient(modifiers) || Modifier.isStatic(modifiers)) {
-                throw new IllegalArgumentException(String.format("In class \"%s\", the field \"%s\" is annotated with \"%s\", but is declared as static/transient", clazz.getName(), field.getName(), HBColumn.class.getName()));
+            if (hbColumn != null) {
+                byte[] family = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
+                if (!map.containsKey(family)) {
+                    map.put(family, new TreeMap<byte[], byte[]>(Bytes.BYTES_COMPARATOR));
+                }
+                Map<byte[], byte[]> columns = map.get(family);
+                byte[] fieldValue = getFieldValueAsByteArray(field, obj, hbColumn.serializeAsString());
+                boolean isFieldNull = (fieldValue == null || fieldValue.length == 0);
+                if (isFieldNull) {
+                    continue;
+                }
+                numOfFieldsToWrite++;
+                columns.put(columnName, fieldValue);
             }
-            Class<?> fieldClazz = field.getType();
-            if (!fromBytesMethods.containsKey(fieldClazz.getName())) {
-                throw new IllegalArgumentException(String.format("Field %s in class %s is of unsupported type (%s). List of supported types: %s", field.getName(), clazz.getName(), fieldClazz.getName(), fromBytesMethods.keySet()));
-            }
-            byte[] family = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
-            if (!map.containsKey(family)) {
-                map.put(family, new TreeMap<byte[], byte[]>(Bytes.BYTES_COMPARATOR));
-            }
-            Map<byte[], byte[]> columns = map.get(family);
-            if (columns.containsKey(columnName)) {
-                throw new IllegalArgumentException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
-            }
-            field.setAccessible(true);
-            byte[] columnValue = fieldValueToByteArray(field, obj, hbColumn.serializeAsString());
-            if (columnValue == null || columnValue.length == 0) {
-                continue;
-            }
-            columns.put(columnName, columnValue);
-            numColumnsToWrite++;
         }
-        if (numColumnsToWrite == 0) {
+        if (numOfFieldsToWrite == 0) {
             throw new IllegalArgumentException("Cannot accept input object with all it's column-mapped variables null");
         }
         return map;
@@ -265,27 +320,24 @@ public class HBObjectMapper {
             return readValueFromRowAndResult(Bytes.toBytes(rowKey), result, clazz);
     }
 
+    private boolean isResultEmpty(Result result) {
+        return result == null || result.isEmpty() || result.getRow() == null || result.getRow().length == 0;
+    }
+
     private <T extends HBRecord> T readValueFromResult(Result result, Class<T> clazz) {
-        if (result == null || result.isEmpty()) {
-            return null;
-        }
-        if (result.getRow() == null || result.getRow().length == 0) {
-            throw new IllegalArgumentException("Result object does not have rowkey set");
-        }
+        if (isResultEmpty(result)) return null;
         return mapToObj(result.getRow(), result.getNoVersionMap(), clazz);
     }
 
     private <T extends HBRecord> T readValueFromRowAndResult(byte[] rowKey, Result result, Class<T> clazz) {
-        if (result == null || result.isEmpty()) {
-            return null;
-        }
+        if (isResultEmpty(result)) return null;
         return mapToObj(rowKey, result.getNoVersionMap(), clazz);
     }
 
     private void objectSetFieldValue(Object obj, Field field, byte[] value, boolean serializeAsString) throws InvocationTargetException, IllegalAccessException {
         if (value == null || value.length == 0)
             return;
-        Class fieldClazz = field.getType();
+        Class<?> fieldClazz = field.getType();
         Object fieldValue;
         if (serializeAsString) {
             Constructor constructor = constructors.get(fieldClazz.getName());
@@ -349,11 +401,8 @@ public class HBObjectMapper {
     }
 
     private <T extends HBRecord> T readValueFromPut(Put put, Class<T> clazz) {
-        if (put == null || put.isEmpty()) {
+        if (put == null || put.isEmpty() || put.getRow() == null || put.getRow().length == 0) {
             return null;
-        }
-        if (put.getRow() == null || put.getRow().length == 0) {
-            throw new IllegalArgumentException("Put object does not have rowkey set");
         }
         return readValueFromRowAndPut(put.getRow(), put, clazz);
     }
@@ -395,6 +444,12 @@ public class HBObjectMapper {
         return Bytes.toBytes(rowKey);
     }
 
+    /**
+     * Get list of column families mapped in class definition
+     *
+     * @param clazz {@link Class} to which you want to convert to (must extend {@link HBRecord} class)
+     * @return Return set of column families used in input class
+     */
     public <T extends HBRecord> Set<String> getColumnFamilies(Class<T> clazz) {
         Set<String> columnFamilySet = new HashSet<String>();
         for (Field field : clazz.getDeclaredFields()) {
@@ -415,5 +470,19 @@ public class HBObjectMapper {
             pairList.add(writeValueAsRowKeyResultPair(obj));
         }
         return pairList;
+    }
+
+    /**
+     * Checks whether input class can be converted to HBase data types and vice-versa
+     *
+     * @param clazz {@link Class} to which you want to convert to (must extend {@link HBRecord} class)
+     */
+    public <T extends HBRecord> boolean isValid(Class<T> clazz) {
+        try {
+            validateHBClass(clazz);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

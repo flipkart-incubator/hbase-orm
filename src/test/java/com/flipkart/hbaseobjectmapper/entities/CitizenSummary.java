@@ -3,6 +3,7 @@ package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
+import com.flipkart.hbaseobjectmapper.HBRowKey;
 import com.flipkart.hbaseobjectmapper.HBTable;
 import lombok.ToString;
 
@@ -10,6 +11,7 @@ import lombok.ToString;
 @HBTable("citizen_summary")
 public class CitizenSummary implements HBRecord {
 
+    @HBRowKey
     private String key;
 
     @HBColumn(family = "a", column = "average_age")

@@ -20,7 +20,7 @@ public class TestsAbstractHBDAO {
     HBaseTestingUtility utility = new HBaseTestingUtility();
     CitizenDAO citizenDao;
     CitizenSummaryDAO citizenSummaryDAO;
-    private List<Citizen> testObjs = TestObjects.citizenList;
+    private List<Citizen> testObjs = TestObjects.validObjs;
 
     @Before
     public void setup() throws Exception {

@@ -1,27 +1,28 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.entities.AllFieldsEmpty;
-import com.flipkart.hbaseobjectmapper.entities.Citizen;
-import com.flipkart.hbaseobjectmapper.entities.NoEmptyConstructor;
-import com.flipkart.hbaseobjectmapper.entities.TwoFieldsMappedToSameColumn;
+import com.flipkart.hbaseobjectmapper.entities.*;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.util.Pair;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import static com.flipkart.hbaseobjectmapper.TestUtil.pair;
 import static org.junit.Assert.*;
 
 public class TestHBObjectMapper {
 
     HBObjectMapper hbMapper = new HBObjectMapper();
-    List<Citizen> testObjs = TestObjects.citizenList;
+    List<Citizen> validObjs = TestObjects.validObjs;
 
     @Test
     public void testHBObjectMapper() {
-        for (Citizen obj : testObjs) {
+        for (Citizen obj : validObjs) {
             System.out.printf("Original object: %s%n", obj);
             testResult(obj);
             testResultWithRow(obj);
@@ -79,8 +80,8 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testInvalidRow() {
-        Citizen e = testObjs.get(0);
+    public void testInvalidRowKey() {
+        Citizen e = TestObjects.validObjs.get(0);
         try {
             hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Citizen.class);
             fail("Invalid row key should've thrown " + IllegalArgumentException.class.getName());
@@ -90,56 +91,91 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testNoEmptyConstructor() {
-        NoEmptyConstructor c = new NoEmptyConstructor(0);
-        Result result = hbMapper.writeValueAsResult(c);
-        try {
-            hbMapper.readValue(result, NoEmptyConstructor.class);
-            fail("Class without an empty constructor should've thrown an " + IllegalArgumentException.class.getName());
-        } catch (IllegalArgumentException ex) {
-            System.out.println("Exception was thrown as expected: " + ex.getMessage());
-
+    public void testInvalidClasses() {
+        List<Pair<HBRecord, String>> invalidRecordsAndErrorMessages = Arrays.asList(
+                pair(Singleton.getInstance(), "A singleton class"),
+                pair(new ClassWithNoEmptyConstructor(1), "Class with no empty contructor"),
+                pair(new ClassWithPrimitives(1f), "A class with primitives"),
+                pair(new ClassWithTwoFieldsMappedToSameColumn(), "Class with two fields mapped to same column"),
+                pair(new ClassWithUnsupportedDataType(), "Class with a field of unsupported data type")
+        );
+        Set<String> exceptionMessages = new HashSet<String>();
+        Result someResult = hbMapper.writeValueAsResult(validObjs.get(0));
+        Put somePut = hbMapper.writeValueAsPut(validObjs.get(0));
+        for (Pair<HBRecord, String> p : invalidRecordsAndErrorMessages) {
+            HBRecord record = p.getFirst();
+            Class recordClass = record.getClass();
+            String errorMessage = p.getSecond() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
+            String exMsgObjToResult = null, exMsgObjToPut = null, exMsgResultToObj = null, exMsgPutToObj = null;
+            try {
+                hbMapper.writeValueAsResult(record);
+                fail(errorMessage + " while converting bean to Result");
+            } catch (IllegalArgumentException ex) {
+                exMsgObjToResult = ex.getMessage();
+            }
+            try {
+                hbMapper.writeValueAsPut(record);
+                fail(errorMessage + " while converting bean to Put");
+            } catch (IllegalArgumentException ex) {
+                exMsgObjToPut = ex.getMessage();
+            }
+            try {
+                hbMapper.readValue(someResult, recordClass);
+                fail(errorMessage + " while converting Result to bean");
+            } catch (IllegalArgumentException ex) {
+                exMsgResultToObj = ex.getMessage();
+            }
+            try {
+                hbMapper.readValue(somePut, recordClass);
+                fail(errorMessage + " while converting Put to bean");
+            } catch (IllegalArgumentException ex) {
+                exMsgPutToObj = ex.getMessage();
+            }
+            assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
+            assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
+            assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
+            if (!exceptionMessages.add(exMsgObjToPut)) {
+                fail("Same error message for different invalid inputs");
+            }
         }
     }
 
     @Test
-    public void testTwoFieldsMappedToSameColumn() {
-        TwoFieldsMappedToSameColumn c = new TwoFieldsMappedToSameColumn();
-        try {
-            hbMapper.writeValueAsResult(c);
-            fail("Class with two fields mapped to same column should've thrown an " + IllegalArgumentException.class.getName());
-        } catch (IllegalArgumentException ex) {
-            System.out.println("Exception was thrown as expected: " + ex.getMessage());
+    public void testInvalidObjs() {
+        for (Pair<HBRecord, String> p : TestObjects.invalidObjs) {
+            HBRecord record = p.getFirst();
+            String errorMessage = "An object with " + p.getSecond() + " should've thrown an " + IllegalArgumentException.class.getName();
+            try {
+                hbMapper.writeValueAsResult(record);
+                fail(errorMessage + " while converting bean to Result");
+            } catch (IllegalArgumentException ex) {
+            }
+            try {
+                hbMapper.writeValueAsPut(record);
+                fail(errorMessage + " while converting bean to Put");
+            } catch (IllegalArgumentException ex) {
+            }
         }
     }
 
     @Test
-    public void testAllFieldsEmpty() {
-        AllFieldsEmpty c = new AllFieldsEmpty();
-        try {
-            hbMapper.writeValueAsResult(c);
-            fail("Class with all empty fields should've thrown an " + IllegalArgumentException.class.getName());
-        } catch (IllegalArgumentException ex) {
-            System.out.println("Exception was thrown as expected: " + ex.getMessage());
-        }
-    }
-
-    @Test
-    public void testNullResults() {
-        Result nullResult = null, emptyResult = new Result();
+    public void testEmptyResults() {
+        Result nullResult = null, emptyResult = new Result(), resultWithBlankRowKey = new Result(new ImmutableBytesWritable(new byte[]{}));
         Citizen nullCitizen = hbMapper.readValue(nullResult, Citizen.class);
         assertNull("Null Result object should return null", nullCitizen);
         Citizen emptyCitizen = hbMapper.readValue(emptyResult, Citizen.class);
         assertNull("Empty Result object should return null", emptyCitizen);
+        assertNull(hbMapper.readValue(resultWithBlankRowKey, Citizen.class));
     }
 
     @Test
-    public void testNullPuts() {
-        Put nullPut = null, emptyPut = new Put();
+    public void testEmptyPuts() {
+        Put nullPut = null, emptyPut = new Put(), putWithBlankRowKey = new Put(new byte[]{});
         Citizen nullCitizen = hbMapper.readValue(nullPut, Citizen.class);
         assertNull("Null Put object should return null", nullCitizen);
         Citizen emptyCitizen = hbMapper.readValue(emptyPut, Citizen.class);
         assertNull("Empty Put object should return null", emptyCitizen);
+        assertNull(hbMapper.readValue(putWithBlankRowKey, Citizen.class));
     }
 
     @Test
@@ -155,7 +191,7 @@ public class TestHBObjectMapper {
 
             }
         });
-        assertEquals("Row keys doesn't match", rowKey, Util.strToIbw("rowkey"));
+        assertEquals("Row keys don't match", rowKey, Util.strToIbw("rowkey"));
         try {
             ImmutableBytesWritable nullRowKey = hbMapper.getRowKey(new HBRecord() {
                 @Override
@@ -168,7 +204,7 @@ public class TestHBObjectMapper {
 
                 }
             });
-            fail("null row key should've thrown an " + NullPointerException.class.getName());
+            fail("null row key should've thrown a " + NullPointerException.class.getName());
         } catch (NullPointerException npx) {
 
         }

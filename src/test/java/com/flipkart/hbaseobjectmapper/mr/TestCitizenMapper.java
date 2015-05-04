@@ -30,7 +30,7 @@ public class TestCitizenMapper {
 
     @Test
     public void testSingle() throws Exception {
-        Citizen citizen = TestObjects.citizenList.get(0);
+        Citizen citizen = TestObjects.validObjs.get(0);
         mapDriver
                 .withInput(
                         hbObjectMapper.getRowKey(citizen),
@@ -43,7 +43,7 @@ public class TestCitizenMapper {
 
     @Test
     public void testMultiple() throws Exception {
-        List<Pair<ImmutableBytesWritable, Result>> citizens = TestUtil.writeValueAsRowKeyResultPair(TestObjects.citizenList);
+        List<Pair<ImmutableBytesWritable, Result>> citizens = TestUtil.writeValueAsRowKeyResultPair(TestObjects.validObjs);
         List<Pair<ImmutableBytesWritable, IntWritable>> mapResults = mapDriver.withAll(citizens).run();
         for (Pair<ImmutableBytesWritable, IntWritable> mapResult : mapResults) {
             assertEquals(Util.ibwToStr(mapResult.getFirst()), "key");

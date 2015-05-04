@@ -37,4 +37,8 @@ public class TestUtil {
         }
         return true;
     }
+
+    public static org.apache.hadoop.hbase.util.Pair<HBRecord, String> pair(HBRecord record, String errorMessage) {
+        return new org.apache.hadoop.hbase.util.Pair<HBRecord, String>(record, errorMessage);
+    }
 }
