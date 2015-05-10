@@ -45,6 +45,8 @@ public class HBObjectMapper {
     private Map<String, Method> fromBytesMethods, toBytesMethods;
     private Map<String, Constructor> constructors;
 
+    private static final String BAD_HBASE_STATE_ERROR = "Unknown error - possibly, HBase library is unavailable at runtime or an incorrect version is being used";
+
     public HBObjectMapper() {
         fromBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
         toBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
@@ -59,7 +61,7 @@ public class HBObjectMapper {
                 toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
                 constructor = clazz.getConstructor(String.class);
             } catch (Exception ex) {
-                throw new IllegalStateException(String.format("Bug in %s code -  Contact developer", HBObjectMapper.class.getName()));
+                throw new IllegalStateException(BAD_HBASE_STATE_ERROR, ex);
             }
             fromBytesMethods.put(clazz.getName(), fromBytesMethod);
             toBytesMethods.put(clazz.getName(), toBytesMethod);
@@ -81,21 +83,15 @@ public class HBObjectMapper {
         } catch (Exception ex) {
             throw new IllegalArgumentException(String.format("Supplied row key \"%s\" could not be parsed", rowKey), ex);
         }
-        try {
-            for (Field field : clazz.getDeclaredFields()) {
-                HBColumn hbColumn = field.getAnnotation(HBColumn.class);
-                if (hbColumn == null)
-                    continue;
-                NavigableMap<byte[], byte[]> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
-                if (familyMap == null || familyMap.isEmpty())
-                    continue;
-                byte[] value = familyMap.get(Bytes.toBytes(hbColumn.column()));
-                objectSetFieldValue(obj, field, value, hbColumn.serializeAsString());
-            }
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
-        } catch (InvocationTargetException e) {
-            throw new IllegalArgumentException(String.format("Could not map object for row key \"%s\"", rowKey), e);
+        for (Field field : clazz.getDeclaredFields()) {
+            HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+            if (hbColumn == null)
+                continue;
+            NavigableMap<byte[], byte[]> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
+            if (familyMap == null || familyMap.isEmpty())
+                continue;
+            byte[] value = familyMap.get(Bytes.toBytes(hbColumn.column()));
+            objectSetFieldValue(obj, field, value);
         }
         return obj;
     }
@@ -123,9 +119,9 @@ public class HBObjectMapper {
             Object fieldValueBytes = serializeAsString ? Bytes.toBytes(String.valueOf(fieldValue)) : toBytesMethod.invoke(obj, fieldValue);
             return (byte[]) fieldValueBytes;
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Bug in library code. Contact developer", e);
+            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
         } catch (InvocationTargetException e) {
-            throw new IllegalStateException(String.format("HBase's %s class is not behaving as expected", Bytes.class.getName()), e);
+            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
         }
     }
 
@@ -136,13 +132,13 @@ public class HBObjectMapper {
             constructor = clazz.getDeclaredConstructor();
             int numOfHBColumns = 0, numOfHBRowKeys = 0;
             for (Field field : clazz.getDeclaredFields()) {
-                validateHBColumnField(clazz, field);
                 if (field.isAnnotationPresent(HBRowKey.class)) {
                     numOfHBRowKeys++;
                 }
                 HBColumn hbColumn = field.getAnnotation(HBColumn.class);
                 if (hbColumn == null)
                     continue;
+                validateHBColumnField(clazz, field);
                 numOfHBColumns++;
                 if (!columns.add(new Pair<String, String>(hbColumn.family(), hbColumn.column()))) {
                     throw new IllegalArgumentException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
@@ -156,7 +152,7 @@ public class HBObjectMapper {
             }
 
         } catch (NoSuchMethodException e) {
-            throw new IllegalArgumentException(String.format("Class %s needs to specify an empty constructor", clazz.getName()));
+            throw new IllegalArgumentException(String.format("Class %s needs to specify an empty constructor", clazz.getName()), e);
         }
         if (!Modifier.isPublic(constructor.getModifiers())) {
             throw new IllegalArgumentException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
@@ -171,7 +167,7 @@ public class HBObjectMapper {
         }
         Class<?> fieldClazz = field.getType();
         if (fieldClazz.isPrimitive()) {
-            String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz)) : "";
+            String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz).getName()) : "";
             throw new IllegalArgumentException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), clazz.getName(), fieldClazz.getName(), suggestion));
         }
         if (!fromBytesMethods.containsKey(fieldClazz.getName())) {
@@ -217,7 +213,7 @@ public class HBObjectMapper {
     /**
      * Converts a bean-like object to HBase's {@link Put} object. For use in reducer jobs that extend HBase's {@link org.apache.hadoop.hbase.mapreduce.TableReducer TableReducer}
      *
-     * @param obj bean-like object (must extend {@link HBRecord})
+     * @param obj bean-like object (of type that extends {@link HBRecord})
      * @return HBase's {@link Put} object
      */
     public Put writeValueAsPut(HBRecord obj) {
@@ -234,7 +230,7 @@ public class HBObjectMapper {
     /**
      * Converts a list of bean-like objects to a list of HBase's {@link Put} objects
      *
-     * @param objs List of bean-like objects (must extend {@link HBRecord})
+     * @param objs List of bean-like objects (of type that extends {@link HBRecord})
      * @return List of HBase's {@link Put} objects
      */
     public List<Put> writeValueAsPut(List<HBRecord> objs) {
@@ -247,9 +243,9 @@ public class HBObjectMapper {
     }
 
     /**
-     * Converts a bean-like object to HBase's {@link Result} object. For unit-testing mapper jobs that extend {@link org.apache.hadoop.hbase.mapreduce.TableMapper TableMapper}
+     * Converts a bean-like object to HBase's {@link Result} object. For use in unit-tests of mapper jobs that extend {@link org.apache.hadoop.hbase.mapreduce.TableMapper TableMapper}
      *
-     * @param obj bean-like object (must extend {@link HBRecord})
+     * @param obj bean-like object (of type that extends {@link HBRecord})
      * @return HBase's {@link Result} object
      */
     public Result writeValueAsResult(HBRecord obj) {
@@ -267,7 +263,7 @@ public class HBObjectMapper {
     /**
      * Converts a list of bean-like objects to a list of HBase's {@link Result} objects
      *
-     * @param objs List of bean-like objects (must extend {@link HBRecord})
+     * @param objs List of bean-like objects (of type that extends {@link HBRecord})
      * @return List of HBase's {@link Result} objects
      */
     public List<Result> writeValueAsResult(List<HBRecord> objs) {
@@ -306,7 +302,7 @@ public class HBObjectMapper {
     }
 
     /**
-     * Converts HBase's {@link Result} object to a bean-like object. For use in DAO of an HBase table
+     * Converts HBase's {@link Result} object to a bean-like object. For building data access objects for an HBase table
      *
      * @param rowKey Row key of the record that corresponds to {@link Result}. If this is <code>null</code>, an attempt will be made to resolve it from {@link Result}
      * @param result HBase's {@link Result} object
@@ -334,24 +330,41 @@ public class HBObjectMapper {
         return mapToObj(rowKey, result.getNoVersionMap(), clazz);
     }
 
-    private void objectSetFieldValue(Object obj, Field field, byte[] value, boolean serializeAsString) throws InvocationTargetException, IllegalAccessException {
+    private void objectSetFieldValue(Object obj, Field field, byte[] value) {
         if (value == null || value.length == 0)
             return;
-        Class<?> fieldClazz = field.getType();
-        Object fieldValue;
-        if (serializeAsString) {
-            Constructor constructor = constructors.get(fieldClazz.getName());
-            try {
-                fieldValue = constructor.newInstance(Bytes.toString(value));
-            } catch (Exception nfex) {
-                fieldValue = null;
-            }
-        } else {
-            Method method = fromBytesMethods.get(fieldClazz.getName());
-            fieldValue = method.invoke(null, new Object[]{value});
+        try {
+            field.setAccessible(true);
+            field.set(obj, toFieldValue(value, field));
+        } catch (Exception ex) {
+            throw new RuntimeException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
         }
-        field.setAccessible(true);
-        field.set(obj, fieldValue);
+    }
+
+    public Object toFieldValue(byte[] value, Field field) {
+        if (value == null)
+            return null;
+        Object fieldValue;
+        try {
+            Class<?> fieldClazz = field.getType();
+            HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+            if (hbColumn.serializeAsString()) {
+                Constructor constructor = constructors.get(fieldClazz.getName());
+                try {
+                    fieldValue = constructor.newInstance(Bytes.toString(value));
+                } catch (Exception ex) {
+                    fieldValue = null;
+                }
+            } else {
+                Method method = fromBytesMethods.get(fieldClazz.getName());
+                fieldValue = method.invoke(null, new Object[]{value});
+            }
+            return fieldValue;
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+        } catch (InvocationTargetException e) {
+            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+        }
     }
 
     /**
@@ -408,7 +421,7 @@ public class HBObjectMapper {
     }
 
     /**
-     * Converts HBase's {@link Put} object to a bean-like object. Use-cases: Reducer test cases
+     * Converts HBase's {@link Put} object to a bean-like object
      *
      * @param put   HBase's {@link Put} object
      * @param clazz {@link Class} to which you want to convert to (must extend {@link HBRecord} class)
@@ -419,9 +432,14 @@ public class HBObjectMapper {
     }
 
     /**
-     * Get row key (for use in HBase) from a bean-line object
+     * Get row key (for use in HBase) from a bean-line object.<br>
+     * For use in:
+     * <ul>
+     * <li>reducer jobs that extend HBase's {@link org.apache.hadoop.hbase.mapreduce.TableReducer TableReducer}</li>
+     * <li>unit tests for mapper jobs that extend HBase's {@link org.apache.hadoop.hbase.mapreduce.TableMapper TableMapper}</li>
+     * </ul>
      *
-     * @param obj Bean-line object (must extend {@link HBRecord})
+     * @param obj bean-like object (of type that extends {@link HBRecord})
      * @return Row key
      */
     public ImmutableBytesWritable getRowKey(HBRecord obj) {
@@ -436,21 +454,22 @@ public class HBObjectMapper {
         try {
             rowKey = obj.composeRowKey();
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Error while composing row key for object " + obj, ex);
+            throw new IllegalArgumentException("Error while composing row key for object", ex);
         }
         if (rowKey == null || rowKey.isEmpty()) {
-            throw new NullPointerException("Row key composed for object " + obj + " is null");
+            throw new NullPointerException("Row key composed for object is null");
         }
         return Bytes.toBytes(rowKey);
     }
 
     /**
-     * Get list of column families mapped in class definition
+     * Get list of column families mapped in definition of your bean-like class
      *
-     * @param clazz {@link Class} to which you want to convert to (must extend {@link HBRecord} class)
+     * @param clazz {@link Class} that you're reading (must extend {@link HBRecord} class)
      * @return Return set of column families used in input class
      */
     public <T extends HBRecord> Set<String> getColumnFamilies(Class<T> clazz) {
+        validateHBClass(clazz);
         Set<String> columnFamilySet = new HashSet<String>();
         for (Field field : clazz.getDeclaredFields()) {
             HBColumn hbColumn = field.getAnnotation(HBColumn.class);
@@ -460,10 +479,20 @@ public class HBObjectMapper {
         return columnFamilySet;
     }
 
+    /**
+     * Converts a bean-like object to a {@link Pair} of row key (of type {@link ImmutableBytesWritable}) and HBase's {@link Result} object
+     *
+     * @param obj bean-like object (of type that extends {@link HBRecord})
+     */
     public Pair<ImmutableBytesWritable, Result> writeValueAsRowKeyResultPair(HBRecord obj) {
         return new Pair<ImmutableBytesWritable, Result>(this.getRowKey(obj), this.writeValueAsResult(obj));
     }
 
+    /**
+     * Converts a list of bean-like objects to a {@link Pair}s of row keys (of type {@link ImmutableBytesWritable}) and HBase's {@link Result} objects
+     *
+     * @param objs List of bean-like objects (of type that extends {@link HBRecord})
+     */
     public List<Pair<ImmutableBytesWritable, Result>> writeValueAsRowKeyResultPair(List<? extends HBRecord> objs) {
         List<Pair<ImmutableBytesWritable, Result>> pairList = new ArrayList<Pair<ImmutableBytesWritable, Result>>(objs.size());
         for (HBRecord obj : objs) {
@@ -475,7 +504,7 @@ public class HBObjectMapper {
     /**
      * Checks whether input class can be converted to HBase data types and vice-versa
      *
-     * @param clazz {@link Class} to which you want to convert to (must extend {@link HBRecord} class)
+     * @param clazz {@link Class} you intend to validate (must extend {@link HBRecord} class)
      */
     public <T extends HBRecord> boolean isValid(Class<T> clazz) {
         try {
@@ -484,5 +513,22 @@ public class HBObjectMapper {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    /**
+     * Get field definitions HBase column mapped fields for your {@link Class}
+     *
+     * @param clazz Bean-like {@link Class} (must extend {@link HBRecord} class) whose fields you intend to read
+     */
+    public <T extends HBRecord> Map<String, Field> getHBFields(Class<T> clazz) {
+        validateHBClass(clazz);
+        Map<String, Field> mappings = new HashMap<String, Field>();
+        for (Field field : clazz.getDeclaredFields()) {
+            HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+            if (hbColumn == null)
+                continue;
+            mappings.put(field.getName(), field);
+        }
+        return mappings;
     }
 }

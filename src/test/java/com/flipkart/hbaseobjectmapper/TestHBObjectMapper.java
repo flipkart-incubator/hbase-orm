@@ -86,7 +86,7 @@ public class TestHBObjectMapper {
             hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Citizen.class);
             fail("Invalid row key should've thrown " + IllegalArgumentException.class.getName());
         } catch (IllegalArgumentException ex) {
-            System.out.println("Exception was thrown as expected: " + ex.getMessage());
+            System.out.println("Exception thrown as expected: " + ex.getMessage());
         }
     }
 
@@ -97,7 +97,9 @@ public class TestHBObjectMapper {
                 pair(new ClassWithNoEmptyConstructor(1), "Class with no empty contructor"),
                 pair(new ClassWithPrimitives(1f), "A class with primitives"),
                 pair(new ClassWithTwoFieldsMappedToSameColumn(), "Class with two fields mapped to same column"),
-                pair(new ClassWithUnsupportedDataType(), "Class with a field of unsupported data type")
+                pair(new ClassWithUnsupportedDataType(), "Class with a field of unsupported data type"),
+                pair(new ClassWithBadAnnotationStatic(), "Class with a static field mapped to HBase column"),
+                pair(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column")
         );
         Set<String> exceptionMessages = new HashSet<String>();
         Result someResult = hbMapper.writeValueAsResult(validObjs.get(0));
@@ -105,6 +107,7 @@ public class TestHBObjectMapper {
         for (Pair<HBRecord, String> p : invalidRecordsAndErrorMessages) {
             HBRecord record = p.getFirst();
             Class recordClass = record.getClass();
+            assertFalse("Object mapper couldn't detect invalidity of class " + recordClass.getName(), hbMapper.isValid(recordClass));
             String errorMessage = p.getSecond() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
             String exMsgObjToResult = null, exMsgObjToPut = null, exMsgResultToObj = null, exMsgPutToObj = null;
             try {
@@ -134,6 +137,7 @@ public class TestHBObjectMapper {
             assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
             assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
             assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
+            System.out.println("Exception thrown for class " + recordClass.getSimpleName() + " as expected: " + exMsgObjToResult + "\n");
             if (!exceptionMessages.add(exMsgObjToPut)) {
                 fail("Same error message for different invalid inputs");
             }

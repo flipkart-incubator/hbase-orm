@@ -17,7 +17,7 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestCitizenReducer {
+public class TestReducer {
 
     HBObjectMapper hbObjectMapper = new HBObjectMapper();
     TableReduceDriver<ImmutableBytesWritable, IntWritable, ImmutableBytesWritable> reducerDriver;

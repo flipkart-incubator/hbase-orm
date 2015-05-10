@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,7 @@ public class TestsAbstractHBDAO {
     @Test
     public void testHBaseDAO() throws Exception {
         String[] rowKeys = new String[testObjs.size()];
-        Map<String, String> expectedNames = new HashMap<String, String>();
+        Map<String, Object> expectedNames = new HashMap<String, Object>();
         for (int i = 0; i < testObjs.size(); i++) {
             Citizen e = testObjs.get(i);
             String rowKey = citizenDao.persist(e);
@@ -51,9 +52,24 @@ public class TestsAbstractHBDAO {
             expectedNames.put(rowKey, e.getName());
             Citizen pe = citizenDao.get(rowKey);
             assertEquals("Entry got corrupted upon persisting and fetching back", pe, e);
+            for (String f : citizenDao.getFields()) {
+                Field field = Citizen.class.getDeclaredField(f);
+                field.setAccessible(true);
+                assertEquals("Field data corrupted upon persisting and fetching back", field.get(e), citizenDao.fetchFieldValue(rowKey, f));
+            }
         }
-        Map<String, String> actualNames = citizenDao.fetchColumnValues(rowKeys, "main", "name");
+        Map<String, Object> actualNames = citizenDao.fetchFieldValues(rowKeys, "name");
         assertTrue("Invalid data returned when column values were fetched in bulk", TestUtil.mapEquals(actualNames, expectedNames));
+        Map<String, Object> actualSalaries = citizenDao.fetchFieldValues(rowKeys, "sal");
+        long actualSumOfSalaries = 0;
+        for (Object s : actualSalaries.values()) {
+            actualSumOfSalaries += s == null ? 0 : (Integer) s;
+        }
+        long expectedSumOfSalaries = 0;
+        for (Citizen c : testObjs) {
+            expectedSumOfSalaries += c.getSal() == null ? 0 : c.getSal();
+        }
+        assertEquals(expectedSumOfSalaries, actualSumOfSalaries);
         assertArrayEquals("Data mismatch between single and bulk 'get' calls", testObjs.toArray(), (Object[]) citizenDao.get(rowKeys));
         Citizen citizenToBeDeleted = testObjs.get(0);
         citizenDao.delete(citizenToBeDeleted);

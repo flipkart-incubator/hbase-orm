@@ -18,7 +18,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestCitizenMapper {
+public class TestMapper {
 
     HBObjectMapper hbObjectMapper = new HBObjectMapper();
     TableMapDriver<ImmutableBytesWritable, IntWritable> mapDriver;

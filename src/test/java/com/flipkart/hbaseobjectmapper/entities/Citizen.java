@@ -13,12 +13,14 @@ import java.math.BigDecimal;
 @EqualsAndHashCode
 @HBTable("citizens")
 public class Citizen implements HBRecord {
+    private static final String KEY_DELIM = "#";
     @HBRowKey
     private String countryCode;
     @HBRowKey
     private Integer uid;
     @HBColumn(family = "main", column = "name")
     private String name;
+    private transient String nameInUpper;
     @HBColumn(family = "optional", column = "age")
     private Short age;
     @HBColumn(family = "optional", column = "salary")
@@ -54,11 +56,11 @@ public class Citizen implements HBRecord {
     }
 
     public String composeRowKey() {
-        return String.format("%s#%d", countryCode, uid);
+        return String.format("%s%s%d", countryCode, KEY_DELIM, uid);
     }
 
     public void parseRowKey(String rowKey) {
-        String[] pieces = rowKey.split("#");
+        String[] pieces = rowKey.split(KEY_DELIM);
         this.countryCode = pieces[0];
         this.uid = Integer.parseInt(pieces[1]);
     }

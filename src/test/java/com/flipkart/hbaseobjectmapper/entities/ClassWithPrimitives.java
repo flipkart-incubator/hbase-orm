@@ -4,13 +4,13 @@ import com.flipkart.hbaseobjectmapper.HBColumn;
 
 public class ClassWithPrimitives extends HBRecordTestClass {
     @HBColumn(family = "a", column = "b")
-    private float i;
+    private float f;
 
     public ClassWithPrimitives() {
-        
+
     }
 
-    public ClassWithPrimitives(float i) {
-        this.i = i;
+    public ClassWithPrimitives(float f) {
+        this.f = f;
     }
 }
