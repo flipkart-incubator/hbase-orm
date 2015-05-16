@@ -132,32 +132,37 @@ public class CitizenDAO extends AbstractHBDAO<Citizen> {
 ```
 Once defined, you can access, manipulate and persist a row of `citizens` HBase table as below:
 
-```
+```java
 Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Configuration
+// Create a data access object:
 CitizenDAO citizenDao = new CitizenDAO(configuration);
+// Fetch an row from "citizens" HBase table with row key "IND#1":
 Citizen pe = citizenDao.get("IND#1");
-pe.setPincode(560034);
-citizenDao.persist(pe);
+pe.setPincode(560034); // change a field
+citizenDao.persist(pe); // Save it back to HBase
+citizenDao.delete(pe); // Delete a row by it's object reference
+citizenDao.delete("IND#2"); // Delete a row by it's row key
 ```
 
 ## Maven
-Include below within the `dependencies` section of your `pom.xml`:
+Add below entry within the `dependencies` section of your `pom.xml`:
 
 ```xml
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.0.3</version>
+	<version>1.0.4</version>
 </dependency>
 ```
+(See artifact details for [com.flipkart:hbase-object-mapper:1.0.4]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.0.4%7Cjar)) on Maven Central)
 
 ## Releases
 
 The change log can be found in the [releases](../../releases) section.
 
-## Feature requests and bugs
+## Feature requests and bug reporting
 
-If you intend to request a feature and report a bug, you may use [Github Issues for hbase-object-mapper](../../issues).
+If you intend to request a feature or report a bug, you may use [Github Issues for hbase-object-mapper](../../issues).
 
 ## License
 
