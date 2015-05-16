@@ -3,6 +3,7 @@ package com.flipkart.hbaseobjectmapper;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.mrunit.types.Pair;
+import org.javatuples.Triplet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,9 @@ public class TestUtil {
         return true;
     }
 
-    public static org.apache.hadoop.hbase.util.Pair<HBRecord, String> pair(HBRecord record, String errorMessage) {
-        return new org.apache.hadoop.hbase.util.Pair<HBRecord, String>(record, errorMessage);
+    public static Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> triplet(HBRecord record, String classDescription, Class<? extends IllegalArgumentException> clazz) {
+        return new Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>(record, classDescription, clazz);
     }
+
+
 }

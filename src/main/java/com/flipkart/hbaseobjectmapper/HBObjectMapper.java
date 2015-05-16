@@ -1,5 +1,6 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.flipkart.hbaseobjectmapper.exceptions.*;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import org.apache.hadoop.hbase.KeyValue;
@@ -45,8 +46,6 @@ public class HBObjectMapper {
     private Map<String, Method> fromBytesMethods, toBytesMethods;
     private Map<String, Constructor> constructors;
 
-    private static final String BAD_HBASE_STATE_ERROR = "Unknown error - possibly, HBase library is unavailable at runtime or an incorrect version is being used";
-
     public HBObjectMapper() {
         fromBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
         toBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
@@ -61,7 +60,7 @@ public class HBObjectMapper {
                 toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
                 constructor = clazz.getConstructor(String.class);
             } catch (Exception ex) {
-                throw new IllegalStateException(BAD_HBASE_STATE_ERROR, ex);
+                throw new BadHBaseLibStateException(ex);
             }
             fromBytesMethods.put(clazz.getName(), fromBytesMethod);
             toBytesMethods.put(clazz.getName(), toBytesMethod);
@@ -76,12 +75,12 @@ public class HBObjectMapper {
         try {
             obj = clazz.newInstance();
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Error while instantiating empty constructor of " + clazz.getName(), ex);
+            throw new ObjectNotInstantiatableException("Error while instantiating empty constructor of " + clazz.getName(), ex);
         }
         try {
             obj.parseRowKey(rowKey);
         } catch (Exception ex) {
-            throw new IllegalArgumentException(String.format("Supplied row key \"%s\" could not be parsed", rowKey), ex);
+            throw new RowKeyCouldNotBeParsedException(String.format("Supplied row key \"%s\" could not be parsed", rowKey), ex);
         }
         for (Field field : clazz.getDeclaredFields()) {
             HBColumn hbColumn = field.getAnnotation(HBColumn.class);
@@ -101,7 +100,7 @@ public class HBObjectMapper {
             field.setAccessible(true);
             return field.get(obj) == null;
         } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException("Field " + field.getName() + " could not be accessed", e);
+            throw new ConversionFailedException("Field " + field.getName() + " could not be accessed", e);
         }
     }
 
@@ -110,7 +109,7 @@ public class HBObjectMapper {
         Class<?> fieldType = field.getType();
         try {
             if (!toBytesMethods.containsKey(fieldType.getName())) {
-                throw new IllegalArgumentException(String.format("Don't know how to convert field of type %s to byte array", fieldType.getName()));
+                throw new ConversionFailedException(String.format("Don't know how to convert field of type %s to byte array", fieldType.getName()));
             }
             Method toBytesMethod = toBytesMethods.get(fieldType.getName());
             Object fieldValue = field.get(obj);
@@ -119,9 +118,9 @@ public class HBObjectMapper {
             Object fieldValueBytes = serializeAsString ? Bytes.toBytes(String.valueOf(fieldValue)) : toBytesMethod.invoke(obj, fieldValue);
             return (byte[]) fieldValueBytes;
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+            throw new BadHBaseLibStateException(e);
         } catch (InvocationTargetException e) {
-            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+            throw new BadHBaseLibStateException(e);
         }
     }
 
@@ -141,37 +140,40 @@ public class HBObjectMapper {
                 validateHBColumnField(clazz, field);
                 numOfHBColumns++;
                 if (!columns.add(new Pair<String, String>(hbColumn.family(), hbColumn.column()))) {
-                    throw new IllegalArgumentException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
+                    throw new FieldsMappedToSameColumnException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
                 }
             }
             if (numOfHBColumns == 0) {
-                throw new IllegalArgumentException(String.format("Class %s doesn't even have a single column annotated with %s", clazz.getName(), HBColumn.class.getName()));
+                throw new MissingHBColumnFieldsException(String.format("Class %s doesn't even have a single field annotated with %s", clazz.getName(), HBColumn.class.getName()));
             }
             if (numOfHBRowKeys == 0) {
-                throw new IllegalArgumentException(String.format("Class %s doesn't even have a single column annotated with %s", clazz.getName(), HBRowKey.class.getName()));
+                throw new MissingHBRowKeyFieldsException(String.format("Class %s doesn't even have a single field annotated with %s (how else would you construct the row key for HBase record?)", clazz.getName(), HBRowKey.class.getName()));
             }
 
         } catch (NoSuchMethodException e) {
-            throw new IllegalArgumentException(String.format("Class %s needs to specify an empty constructor", clazz.getName()), e);
+            throw new NoEmptyConstructorException(String.format("Class %s needs to specify an empty constructor", clazz.getName()), e);
         }
         if (!Modifier.isPublic(constructor.getModifiers())) {
-            throw new IllegalArgumentException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
+            throw new EmptyConstructorInaccessibleException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
         }
 
     }
 
     private <T extends HBRecord> void validateHBColumnField(Class<T> clazz, Field field) {
         int modifiers = field.getModifiers();
-        if (Modifier.isTransient(modifiers) || Modifier.isStatic(modifiers)) {
-            throw new IllegalArgumentException(String.format("In class \"%s\", the field \"%s\" is annotated with \"%s\", but is declared as static/transient", clazz.getName(), field.getName(), HBColumn.class.getName()));
+        if (Modifier.isTransient(modifiers)) {
+            throw new MappedColumnCantBeTransientException(String.format("In class \"%s\", the field \"%s\" is annotated with \"%s\", but is declared as transient (Transient fields cannot be persisted)", clazz.getName(), field.getName(), HBColumn.class.getName()));
+        }
+        if (Modifier.isStatic(modifiers)) {
+            throw new MappedColumnCantBeStaticException(String.format("In class \"%s\", the field \"%s\" is annotated with \"%s\", but is declared as static (Only instance fields can be mapped to HBase columns)", clazz.getName(), field.getName(), HBColumn.class.getName()));
         }
         Class<?> fieldClazz = field.getType();
         if (fieldClazz.isPrimitive()) {
             String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz).getName()) : "";
-            throw new IllegalArgumentException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), clazz.getName(), fieldClazz.getName(), suggestion));
+            throw new MappedColumnCantBePrimitiveException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), clazz.getName(), fieldClazz.getName(), suggestion));
         }
         if (!fromBytesMethods.containsKey(fieldClazz.getName())) {
-            throw new IllegalArgumentException(String.format("Field %s in class %s is of unsupported type (%s). List of supported types: %s", field.getName(), clazz.getName(), fieldClazz.getName(), fromBytesMethods.keySet()));
+            throw new UnsupportedFieldTypeException(String.format("Field %s in class %s is of unsupported type (%s). List of supported types: %s", field.getName(), clazz.getName(), fieldClazz.getName(), fromBytesMethods.keySet()));
         }
     }
 
@@ -187,7 +189,7 @@ public class HBObjectMapper {
                 continue;
             if (isRowKey) {
                 if (isFieldNull(field, obj))
-                    throw new IllegalArgumentException("Field " + field.getName() + " is null (fields part of row key cannot be null)");
+                    throw new HBRowKeyFieldCantBeNullException("Field " + field.getName() + " is null (fields part of row key cannot be null)");
             }
             if (hbColumn != null) {
                 byte[] family = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
@@ -205,7 +207,7 @@ public class HBObjectMapper {
             }
         }
         if (numOfFieldsToWrite == 0) {
-            throw new IllegalArgumentException("Cannot accept input object with all it's column-mapped variables null");
+            throw new AllHBColumnFieldsNullException("Cannot accept input object with all it's column-mapped variables null");
         }
         return map;
     }
@@ -337,7 +339,7 @@ public class HBObjectMapper {
             field.setAccessible(true);
             field.set(obj, toFieldValue(value, field));
         } catch (Exception ex) {
-            throw new RuntimeException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
+            throw new ConversionFailedException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
         }
     }
 
@@ -361,9 +363,9 @@ public class HBObjectMapper {
             }
             return fieldValue;
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+            throw new BadHBaseLibStateException(e);
         } catch (InvocationTargetException e) {
-            throw new IllegalStateException(BAD_HBASE_STATE_ERROR, e);
+            throw new BadHBaseLibStateException(e);
         }
     }
 
@@ -454,10 +456,10 @@ public class HBObjectMapper {
         try {
             rowKey = obj.composeRowKey();
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Error while composing row key for object", ex);
+            throw new RowKeyCantBeComposedException("Error while composing row key for object", ex);
         }
         if (rowKey == null || rowKey.isEmpty()) {
-            throw new NullPointerException("Row key composed for object is null");
+            throw new RowKeyCantBeEmptyException("Row key composed for object is null or empty");
         }
         return Bytes.toBytes(rowKey);
     }
