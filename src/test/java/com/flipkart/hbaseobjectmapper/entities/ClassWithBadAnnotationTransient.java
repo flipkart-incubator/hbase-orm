@@ -1,8 +1,23 @@
 package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
+import com.flipkart.hbaseobjectmapper.HBRecord;
+import com.flipkart.hbaseobjectmapper.HBRowKey;
 
-public class ClassWithBadAnnotationTransient extends HBRecordTestClass {
+public class ClassWithBadAnnotationTransient implements HBRecord {
+    @HBRowKey
+    protected String key = "key";
+
+    @Override
+    public String composeRowKey() {
+        return key;
+    }
+
+    @Override
+    public void parseRowKey(String rowKey) {
+        this.key = rowKey;
+    }
+
     @HBColumn(family = "a", column = "first_name")
     private String firstName;
     @HBColumn(family = "a", column = "last_name")

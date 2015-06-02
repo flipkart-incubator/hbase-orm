@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @ToString
 @EqualsAndHashCode
@@ -37,14 +38,18 @@ public class Citizen implements HBRecord {
     private BigDecimal f4;
     @HBColumn(family = "optional", column = "pincode", serializeAsString = true)
     private Integer pincode;
+    @HBColumn(family = "optional", column = "flags")
+    private Map<String, Integer> extraFlags;
 
     public Citizen() {
     }
 
-    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode) {
+    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, Map<String, Integer> extraFlags) {
         this.countryCode = countryCode;
         this.uid = uid;
         this.name = name;
+        this.extraFlags = extraFlags;
+        this.nameInUpper = name == null ? null : name.toUpperCase();
         this.age = age;
         this.sal = sal;
         this.isPassportHolder = isPassportHolder;
@@ -109,5 +114,9 @@ public class Citizen implements HBRecord {
 
     public Short getAge() {
         return age;
+    }
+
+    public Map<String, Integer> getExtraFlags() {
+        return extraFlags;
     }
 }

@@ -1,13 +1,14 @@
 package com.flipkart.hbaseobjectmapper.entities;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
+import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.HBRowKey;
 
-public class Singleton extends HBRecordTestClass {
+public class Singleton implements HBRecord {
     private static Singleton ourInstance = new Singleton();
 
     @HBRowKey
-    protected String key;
+    protected String key = "key";
 
     @HBColumn(family = "f", column = "c")
     String column;
@@ -18,6 +19,16 @@ public class Singleton extends HBRecordTestClass {
 
     private Singleton() {
         column = "something";
+    }
+
+    @Override
+    public String composeRowKey() {
+        return key;
+    }
+
+    @Override
+    public void parseRowKey(String rowKey) {
+        this.key = rowKey;
     }
 
 }

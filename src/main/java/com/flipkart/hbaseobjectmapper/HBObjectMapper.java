@@ -1,5 +1,8 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.hbaseobjectmapper.exceptions.*;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -10,6 +13,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 
+import java.io.IOException;
 import java.lang.reflect.*;
 import java.math.BigDecimal;
 import java.util.*;
@@ -18,6 +22,8 @@ import java.util.*;
  * An object mapper class that helps convert your bean-like objects to HBase's {@link Put} and {@link Result} objects (and vice-versa). For use in Map/Reduce jobs and their unit-tests
  */
 public class HBObjectMapper {
+
+    private static final ObjectMapper jsonObjMapper = new ObjectMapper();
 
     private static final Map<Class, String> fromBytesMethodNames = new HashMap<Class, String>() {
         {
@@ -43,8 +49,8 @@ public class HBObjectMapper {
         }
     });
 
-    private Map<String, Method> fromBytesMethods, toBytesMethods;
-    private Map<String, Constructor> constructors;
+    private final Map<String, Method> fromBytesMethods, toBytesMethods;
+    private final Map<String, Constructor> constructors;
 
     public HBObjectMapper() {
         fromBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
@@ -108,15 +114,24 @@ public class HBObjectMapper {
         field.setAccessible(true);
         Class<?> fieldType = field.getType();
         try {
-            if (!toBytesMethods.containsKey(fieldType.getName())) {
-                throw new ConversionFailedException(String.format("Don't know how to convert field of type %s to byte array", fieldType.getName()));
-            }
-            Method toBytesMethod = toBytesMethods.get(fieldType.getName());
             Object fieldValue = field.get(obj);
             if (fieldValue == null)
                 return null;
-            Object fieldValueBytes = serializeAsString ? Bytes.toBytes(String.valueOf(fieldValue)) : toBytesMethod.invoke(obj, fieldValue);
-            return (byte[]) fieldValueBytes;
+            if (toBytesMethods.containsKey(fieldType.getName())) {
+                Method toBytesMethod = toBytesMethods.get(fieldType.getName());
+                Object fieldValueBytes = serializeAsString ? Bytes.toBytes(String.valueOf(fieldValue)) : toBytesMethod.invoke(obj, fieldValue);
+                return (byte[]) fieldValueBytes;
+            } else {
+                try {
+                    if (serializeAsString)
+                        return Bytes.toBytes(jsonObjMapper.writeValueAsString(fieldValue));
+                    else
+                        return jsonObjMapper.writeValueAsBytes(fieldValue);
+
+                } catch (JsonProcessingException jpx) {
+                    throw new ConversionFailedException(String.format("Don't know how to convert field of type %s to byte array", fieldType.getName()));
+                }
+            }
         } catch (IllegalAccessException e) {
             throw new BadHBaseLibStateException(e);
         } catch (InvocationTargetException e) {
@@ -156,7 +171,6 @@ public class HBObjectMapper {
         if (!Modifier.isPublic(constructor.getModifiers())) {
             throw new EmptyConstructorInaccessibleException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
         }
-
     }
 
     private <T extends HBRecord> void validateHBColumnField(Class<T> clazz, Field field) {
@@ -172,8 +186,9 @@ public class HBObjectMapper {
             String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz).getName()) : "";
             throw new MappedColumnCantBePrimitiveException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), clazz.getName(), fieldClazz.getName(), suggestion));
         }
-        if (!fromBytesMethods.containsKey(fieldClazz.getName())) {
-            throw new UnsupportedFieldTypeException(String.format("Field %s in class %s is of unsupported type (%s). List of supported types: %s", field.getName(), clazz.getName(), fieldClazz.getName(), fromBytesMethods.keySet()));
+        JavaType javaType = jsonObjMapper.constructType(field.getGenericType());
+        if (!jsonObjMapper.canDeserialize(javaType)) {
+            throw new UnsupportedFieldTypeException(String.format("Field %s in class %s is of unsupported type (%s)", field.getName(), clazz.getName(), fieldClazz.getName()));
         }
     }
 
@@ -187,9 +202,8 @@ public class HBObjectMapper {
             boolean isRowKey = field.isAnnotationPresent(HBRowKey.class);
             if (hbColumn == null && !isRowKey)
                 continue;
-            if (isRowKey) {
-                if (isFieldNull(field, obj))
-                    throw new HBRowKeyFieldCantBeNullException("Field " + field.getName() + " is null (fields part of row key cannot be null)");
+            if (isRowKey && isFieldNull(field, obj)) {
+                throw new HBRowKeyFieldCantBeNullException("Field " + field.getName() + " is null (fields part of row key cannot be null)");
             }
             if (hbColumn != null) {
                 byte[] family = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
@@ -349,17 +363,29 @@ public class HBObjectMapper {
         Object fieldValue;
         try {
             Class<?> fieldClazz = field.getType();
+            JavaType fieldType = jsonObjMapper.constructType(fieldClazz);
             HBColumn hbColumn = field.getAnnotation(HBColumn.class);
-            if (hbColumn.serializeAsString()) {
-                Constructor constructor = constructors.get(fieldClazz.getName());
-                try {
-                    fieldValue = constructor.newInstance(Bytes.toString(value));
-                } catch (Exception ex) {
-                    fieldValue = null;
+            if (fromBytesMethods.containsKey(fieldClazz.getName())) {
+                if (hbColumn.serializeAsString()) {
+                    Constructor constructor = constructors.get(fieldClazz.getName());
+                    try {
+                        fieldValue = constructor.newInstance(Bytes.toString(value));
+                    } catch (Exception ex) {
+                        fieldValue = null;
+                    }
+                } else {
+                    Method method = fromBytesMethods.get(fieldClazz.getName());
+                    fieldValue = method.invoke(null, new Object[]{value});
                 }
             } else {
-                Method method = fromBytesMethods.get(fieldClazz.getName());
-                fieldValue = method.invoke(null, new Object[]{value});
+                try {
+                    if (hbColumn.serializeAsString())
+                        return jsonObjMapper.readValue(Bytes.toString(value), fieldType);
+                    else
+                        return jsonObjMapper.readValue(value, fieldType);
+                } catch (IOException e) {
+                    throw new CouldNotDeserialize(e);
+                }
             }
             return fieldValue;
         } catch (IllegalAccessException e) {

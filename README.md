@@ -3,7 +3,7 @@
 ## Introduction
 This compact utility library is an annotation based *object mapper* for HBase that helps you:
 
-* convert your bean-like objects to HBase's `Put` and `Result` objects and vice-versa (for use in Map/Reduce jobs involving HBase tables and their unit-tests)
+* convert your bean-like objects to HBase rows and vice-versa (for use in Map/Reduce jobs involving HBase tables and their unit-tests)
 * define *data access objects* for entities that map to HBase rows (for random single/bulk access of rows from an HBase table)
 
 ## Usage
@@ -34,6 +34,7 @@ public class Citizen implements HBRecord {
     }
 } 
 ```
+(see [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) for a detailed example)
 
 Now, using above definition, we can access rows in the HBase table as objects, either through a Map/Reduce on the HBase table or through random access using:
 
@@ -130,6 +131,8 @@ public class CitizenDAO extends AbstractHBDAO<Citizen> {
     }
 }
 ```
+(see [CitizenDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/daos/CitizenDAO.java))
+
 Once defined, you can access, manipulate and persist a row of `citizens` HBase table as below:
 
 ```java
@@ -143,6 +146,8 @@ citizenDao.persist(pe); // Save it back to HBase
 citizenDao.delete(pe); // Delete a row by it's object reference
 citizenDao.delete("IND#2"); // Delete a row by it's row key
 ```
+(see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for more detailed example)
+
 
 ## Maven
 Add below entry within the `dependencies` section of your `pom.xml`:

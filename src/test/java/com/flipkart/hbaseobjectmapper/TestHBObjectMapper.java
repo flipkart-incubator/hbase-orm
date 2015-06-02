@@ -90,7 +90,7 @@ public class TestHBObjectMapper {
             hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Citizen.class);
             fail("Invalid row key should've thrown " + RowKeyCouldNotBeParsedException.class.getName());
         } catch (RowKeyCouldNotBeParsedException ex) {
-            System.out.println("Exception thrown as expected: " + ex.getMessage());
+            System.out.println("For a simulate HBase row with invalid row key, below Exception was thrown as expected:\n" + ex.getMessage() + "\n");
         }
     }
 
@@ -104,10 +104,9 @@ public class TestHBObjectMapper {
     public void testInvalidClasses() {
         List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidRecordsAndErrorMessages = Arrays.asList(
                 triplet(Singleton.getInstance(), "A singleton class", EmptyConstructorInaccessibleException.class),
-                triplet(new ClassWithNoEmptyConstructor(1), "Class with no empty contructor", NoEmptyConstructorException.class),
+                triplet(new ClassWithNoEmptyConstructor(1), "Class with no empty constructor", NoEmptyConstructorException.class),
                 triplet(new ClassWithPrimitives(1f), "A class with primitives", MappedColumnCantBePrimitiveException.class),
                 triplet(new ClassWithTwoFieldsMappedToSameColumn(), "Class with two fields mapped to same column", FieldsMappedToSameColumnException.class),
-                triplet(new ClassWithUnsupportedDataType(), "Class with a field of unsupported data type", UnsupportedFieldTypeException.class),
                 triplet(new ClassWithBadAnnotationStatic(), "Class with a static field mapped to HBase column", MappedColumnCantBeStaticException.class),
                 triplet(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column", MappedColumnCantBeTransientException.class),
                 triplet(new ClassWithNoHBColumns(), "Class with no fields mapped with HBColumn", MissingHBColumnFieldsException.class),
@@ -124,34 +123,34 @@ public class TestHBObjectMapper {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result");
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown for " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgObjToResult = ex.getMessage();
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put");
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown for " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgObjToPut = ex.getMessage();
             }
             try {
                 hbMapper.readValue(someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown for " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgResultToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(someResult.getRow()), someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown for " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
             }
             try {
                 hbMapper.readValue(somePut, recordClass);
                 fail(errorMessage + " while converting Put to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown for " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgPutToObj = ex.getMessage();
             }
             try {
@@ -163,7 +162,7 @@ public class TestHBObjectMapper {
             assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
             assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
             assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
-            System.out.println("Exception thrown for class " + recordClass.getSimpleName() + " as expected: " + exMsgObjToResult + "\n");
+            System.out.printf("%s threw below Exception as expected:\n%s\n%n", p.getValue1(), exMsgObjToResult);
             if (!exceptionMessages.add(exMsgObjToPut)) {
                 fail("Same error message for different invalid inputs");
             }

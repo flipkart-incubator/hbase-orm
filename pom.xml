@@ -3,7 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <name>HBase Object Mapper</name>
-    <description>A Java-annotation based object mapper that helps convert your bean-like objects to HBase's data types
+    <description>A Java-annotation based object mapper that helps convert your bean-like objects to HBase rows
         (and vice-versa) for use in Map/Reduce jobs involving HBase tables (and their unit tests). Helps define Data
         Access Objects for HBase entities
     </description>
@@ -120,6 +120,11 @@
             <version>1.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.4.5</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -129,6 +134,7 @@
                 <configuration>
                     <source>1.6</source>
                     <target>1.6</target>
+                    <compilerArgument>-Xlint:all</compilerArgument>
                 </configuration>
             </plugin>
             <plugin>
