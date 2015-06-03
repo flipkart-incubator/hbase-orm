@@ -76,6 +76,16 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
         return records;
     }
 
+    public List<T> get(String startRowKey, String endRowKey) throws IOException {
+        Scan scan = new Scan(Bytes.toBytes(startRowKey), Bytes.toBytes(endRowKey));
+        ResultScanner scanner = hTable.getScanner(scan);
+        List<T> records = new ArrayList<T>();
+        for (Result result : scanner) {
+            records.add(hbObjectMapper.readValue(result, hbRecordClass));
+        }
+        return records;
+    }
+
     /**
      * Persist your bean-like object (of a class that implements {@link HBRecord}) to HBase table
      *
@@ -168,6 +178,14 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
         return hTable;
     }
 
+    private Field getField(String fieldName) {
+        Field field = fields.get(fieldName);
+        if (field == null) {
+            throw new IllegalArgumentException(String.format("Unrecognized field: '%s'. Choose one of %s", fieldName, fields.values().toString()));
+        }
+        return field;
+    }
+
     /**
      * Fetch value of column for a given row key and field
      *
@@ -177,28 +195,39 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @throws IOException Thrown when there is an exception from HBase
      */
     public Object fetchFieldValue(String rowKey, String fieldName) throws IOException {
-        Field field = fields.get(fieldName);
-        if (field == null) {
-            throw new IllegalArgumentException(String.format("Unrecognized field: '%s'. Choose one of %s", fieldName, fields.values().toString()));
-        }
+        Field field = getField(fieldName);
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);
         Get get = new Get(Bytes.toBytes(rowKey));
         get.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
         Result result = this.hTable.get(get);
+        if (result.isEmpty()) return null;
         KeyValue kv = result.getColumnLatest(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
-        if (kv == null)
-            return null;
         return hbObjectMapper.toFieldValue(kv.getValue(), field);
     }
 
     /**
-     * Bulk version of method {@link AbstractHBDAO#fetchFieldValue(String, String)}
+     * Bulk version of method {@link AbstractHBDAO#fetchFieldValue(String, String)} for a range of keys
+     */
+    public Map<String, Object> fetchFieldValues(String startRowKey, String endRowKey, String fieldName) throws IOException {
+        Field field = getField(fieldName);
+        HBColumn hbColumn = field.getAnnotation(HBColumn.class);
+        Scan scan = new Scan(Bytes.toBytes(startRowKey), Bytes.toBytes(endRowKey));
+        scan.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
+        ResultScanner scanner = hTable.getScanner(scan);
+        Map<String, Object> map = new HashMap<String, Object>();
+        for (Result result : scanner) {
+            if (result.isEmpty()) continue;
+            KeyValue kv = result.getColumnLatest(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
+            map.put(Bytes.toString(kv.getRow()), hbObjectMapper.toFieldValue(kv.getValue(), field));
+        }
+        return map;
+    }
+
+    /**
+     * Bulk version of method {@link AbstractHBDAO#fetchFieldValue(String, String)} for an array of keys
      */
     public Map<String, Object> fetchFieldValues(String[] rowKeys, String fieldName) throws IOException {
-        Field field = fields.get(fieldName);
-        if (field == null) {
-            throw new IllegalArgumentException(String.format("Unrecognized field: '%s'. Choose one of %s", fieldName, fields.values().toString()));
-        }
+        Field field = getField(fieldName);
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);
         List<Get> gets = new ArrayList<Get>(rowKeys.length);
         for (String rowKey : rowKeys) {
@@ -209,9 +238,8 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
         Result[] results = this.hTable.get(gets);
         Map<String, Object> map = new HashMap<String, Object>(rowKeys.length);
         for (Result result : results) {
+            if (result.isEmpty()) continue;
             KeyValue kv = result.getColumnLatest(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
-            if (kv == null)
-                continue;
             map.put(Bytes.toString(kv.getRow()), hbObjectMapper.toFieldValue(kv.getValue(), field));
         }
         return map;

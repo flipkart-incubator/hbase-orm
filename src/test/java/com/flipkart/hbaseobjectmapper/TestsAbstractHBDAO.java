@@ -64,22 +64,40 @@ public class TestsAbstractHBDAO {
 
     public void testHBaseDAO() throws Exception {
         String[] rowKeys = new String[testObjs.size()];
-        Map<String, Object> expectedNames = new HashMap<String, Object>();
+        Map<String, Map<String, Object>> expectedFieldValues = new HashMap<String, Map<String, Object>>();
         for (int i = 0; i < testObjs.size(); i++) {
             Citizen e = testObjs.get(i);
-            String rowKey = citizenDao.persist(e);
+            final String rowKey = citizenDao.persist(e);
             rowKeys[i] = rowKey;
-            expectedNames.put(rowKey, e.getName());
             Citizen pe = citizenDao.get(rowKey);
             assertEquals("Entry got corrupted upon persisting and fetching back", pe, e);
             for (String f : citizenDao.getFields()) {
                 Field field = Citizen.class.getDeclaredField(f);
                 field.setAccessible(true);
-                assertEquals("Field data corrupted upon persisting and fetching back", field.get(e), citizenDao.fetchFieldValue(rowKey, f));
+                final Object actual = citizenDao.fetchFieldValue(rowKey, f);
+                assertEquals("Field data corrupted upon persisting and fetching back", field.get(e), actual);
+                if (actual == null) continue;
+                if (!expectedFieldValues.containsKey(f)) {
+                    expectedFieldValues.put(f, new HashMap<String, Object>() {
+                        {
+                            put(rowKey, actual);
+                        }
+                    });
+                } else {
+                    expectedFieldValues.get(f).put(rowKey, actual);
+                }
             }
         }
-        Map<String, Object> actualNames = citizenDao.fetchFieldValues(rowKeys, "name");
-        assertTrue("Invalid data returned when column values were fetched in bulk", TestUtil.mapEquals(actualNames, expectedNames));
+        List<Citizen> citizens = citizenDao.get(rowKeys[0], rowKeys[rowKeys.length - 1]);
+        for (int i = 0; i < citizens.size(); i++) {
+            assertEquals("When retrieved in bulk (range scan), we have unexpected entry", citizens.get(i), testObjs.get(i));
+        }
+        for (String f : citizenDao.getFields()) {
+            Map<String, Object> actualFieldValues = citizenDao.fetchFieldValues(rowKeys, f);
+            Map<String, Object> actualFieldValuesScanned = citizenDao.fetchFieldValues("A", "z", f);
+            assertTrue(String.format("Invalid data returned when values for column \"%s\" were fetched in bulk\nExpected: %s\nActual: %s", f, expectedFieldValues.get(f), actualFieldValues), TestUtil.mapEquals(actualFieldValues, expectedFieldValues.get(f)));
+            assertTrue("Difference between 'bulk fetch by array of row keys' and 'bulk fetch by range of row keys'", TestUtil.mapEquals(actualFieldValues, actualFieldValuesScanned));
+        }
         Map<String, Object> actualSalaries = citizenDao.fetchFieldValues(rowKeys, "sal");
         long actualSumOfSalaries = 0;
         for (Object s : actualSalaries.values()) {

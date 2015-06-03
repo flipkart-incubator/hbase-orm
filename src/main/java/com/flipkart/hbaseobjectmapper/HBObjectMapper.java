@@ -358,7 +358,7 @@ public class HBObjectMapper {
     }
 
     public Object toFieldValue(byte[] value, Field field) {
-        if (value == null)
+        if (value == null || value.length == 0)
             return null;
         Object fieldValue;
         try {

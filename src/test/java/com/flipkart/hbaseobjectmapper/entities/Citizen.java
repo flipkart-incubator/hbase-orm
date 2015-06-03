@@ -40,15 +40,18 @@ public class Citizen implements HBRecord {
     private Integer pincode;
     @HBColumn(family = "optional", column = "flags")
     private Map<String, Integer> extraFlags;
+    @HBColumn(family = "optional", column = "dependents")
+    private Dependents dependents;
 
     public Citizen() {
     }
 
-    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, Map<String, Integer> extraFlags) {
+    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, Map<String, Integer> extraFlags, Dependents dependents) {
         this.countryCode = countryCode;
         this.uid = uid;
         this.name = name;
         this.extraFlags = extraFlags;
+        this.dependents = dependents;
         this.nameInUpper = name == null ? null : name.toUpperCase();
         this.age = age;
         this.sal = sal;
