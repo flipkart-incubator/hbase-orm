@@ -1,13 +1,15 @@
 # HBase Object Mapper
 
 ## Introduction
-This compact utility library is an annotation based *object mapper* for HBase that helps you:
+This compact utility library is an annotation based *object mapper* for HBase (written in Java) that helps you:
 
-* convert your bean-like objects to HBase rows and vice-versa (for use in Map/Reduce jobs involving HBase tables and their unit-tests)
-* define *data access objects* for entities that map to HBase rows (for random single/bulk access of rows from an HBase table)
+* convert your bean-like objects to HBase rows and vice-versa (for use in Map/Reduce jobs on HBase tables and their unit-tests)
+* define *data access objects* for entities that map to HBase rows (for random single/range/bulk access of rows of an HBase table)
 
 ## Usage
-Let's say you've an HBase table `citizens` with row-key format `country_code#UID` and columns like `uid`, `name` and `salary` etc. This library enables to you represent your HBase row as a class as below:
+Let's say you've an HBase table `citizens` with row-key format `country_code#UID`. Let's say your table is created with two column families `main` and `optional` which may have columns like `uid`, `name`, `salary` etc.
+
+This library enables to you represent your HBase row as a class like below:
 
 ```java
 @HBTable("citizens")
@@ -22,6 +24,10 @@ public class Citizen implements HBRecord {
     private Short age;
     @HBColumn(family = "optional", column = "salary")
     private Integer sal;
+    @HBColumn(family = "optional", column = "flags")
+    private Map<String, Integer> extraFlags;
+    @HBColumn(family = "optional", column = "dependents")
+    private Dependents dependents;
 
     public String composeRowKey() {
         return String.format("%s#%d", countryCode, uid);
@@ -34,12 +40,12 @@ public class Citizen implements HBRecord {
     }
 } 
 ```
-(see [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) for a detailed example)
+(see [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) for a detailed example with more data types)
 
-Now, using above definition, we can access rows in the HBase table as objects, either through a Map/Reduce on the HBase table or through random access using:
+Now, for above definition of your `Citizen` class,
 
-* class `HBObjectMapper` that contains methods to convert your bean-like objects (e.g. `Citizen` class above) to HBase's `Put` and `Result` objects and vice-versa.
-* abstract generic class `AbstractHBDAO` that contains methods like `get` and `persist` to enable random single/bulk access of rows from an HBase table.
+* you can use methods in `HBObjectMapper` class to convert `Citizen` objects to HBase's `Put` and `Result` objects and vice-versa
+* you can inherit from class `AbstractHBDAO` that contains methods like `get` (for random single/bulk/range access of rows), `persist` (for writing rows) and `delete` (for deleting rows)
 
 ## Map/Reduce use-cases
 
@@ -84,7 +90,7 @@ ImmutableBytesWritable getRowKey(HBRecord obj)
 ```java
 Result writeValueAsResult(HBRecord obj)
 ```
-Below is an example usage of unit-test of a mapper using [MRUnit](https://mrunit.apache.org/):
+Below is an example of unit-test of a mapper using [MRUnit](https://mrunit.apache.org/):
 
 ```java
 Citizen citizen = new Citizen(/*params*/);
@@ -107,7 +113,7 @@ HBase's `Put` object can be converted to your bean-like object using below metho
 <T extends HBRecord> T readValue(ImmutableBytesWritable rowKeyBytes, Put put, Class<T> clazz)
 ```
 
-Below is an example usage of unit-test of a reducer using [MRUnit](https://mrunit.apache.org/):
+Below is an example of unit-test of a reducer using [MRUnit](https://mrunit.apache.org/):
 
 ```java
 Pair<ImmutableBytesWritable, Writable> reducerResult = reducerDriver.withInput(Util.strToIbw("key"), Arrays.asList(new IntWritable(1), new IntWritable(5))).run().get(0);
@@ -117,7 +123,7 @@ Citizen citizen = hbObjectMapper.readValue(reducerResult.getFirst(), (Put) reduc
 See file [TestCitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenReducer.java) for full sample code that unit-tests a reducer using [MRUnit](https://mrunit.apache.org/)
 
 ## HBase ORM
-Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. Nevertheless, you can use this library as an HBase-ORM too.
+Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. Nevertheless, you can use this library as an HBase-ORM too!
 
 This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
 
@@ -141,12 +147,14 @@ Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Confi
 CitizenDAO citizenDao = new CitizenDAO(configuration);
 // Fetch an row from "citizens" HBase table with row key "IND#1":
 Citizen pe = citizenDao.get("IND#1");
+List<Citizen> lpe = citizenDao.get("IND#1", "IND#5"); //range get
+Citizen[] ape = citizenDao.get(new String[] {"IND#1", "IND#2"}); //bulk get
 pe.setPincode(560034); // change a field
 citizenDao.persist(pe); // Save it back to HBase
 citizenDao.delete(pe); // Delete a row by it's object reference
 citizenDao.delete("IND#2"); // Delete a row by it's row key
 ```
-(see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for more detailed example)
+(see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for a more detailed example)
 
 
 ## Maven
@@ -156,10 +164,10 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.0.4</version>
+	<version>1.1</version>
 </dependency>
 ```
-(See artifact details for [com.flipkart:hbase-object-mapper:1.0.4]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.0.4%7Cjar)) on Maven Central)
+(See artifact details for [com.flipkart:hbase-object-mapper:1.1]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.1%7Cjar)) on **Maven Central**)
 
 ## Releases
 
