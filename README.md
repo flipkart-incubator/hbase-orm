@@ -28,6 +28,8 @@ public class Citizen implements HBRecord {
     private Map<String, Integer> extraFlags;
     @HBColumn(family = "optional", column = "dependents")
     private Dependents dependents;
+    @HBColumnMultiVersion(family = "optional", column = "phone_number")
+    private NavigableMap<Long, Integer> phoneNumber; // Multi-versioned column. This annotation enables you to fetch multiple versions of column values
 
     public String composeRowKey() {
         return String.format("%s#%d", countryCode, uid);
@@ -143,15 +145,23 @@ Once defined, you can access, manipulate and persist a row of `citizens` HBase t
 
 ```java
 Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Configuration
+
 // Create a data access object:
 CitizenDAO citizenDao = new CitizenDAO(configuration);
+
 // Fetch an row from "citizens" HBase table with row key "IND#1":
 Citizen pe = citizenDao.get("IND#1");
+
 List<Citizen> lpe = citizenDao.get("IND#1", "IND#5"); //range get
+
 Citizen[] ape = citizenDao.get(new String[] {"IND#1", "IND#2"}); //bulk get
+
 pe.setPincode(560034); // change a field
+
 citizenDao.persist(pe); // Save it back to HBase
+
 citizenDao.delete(pe); // Delete a row by it's object reference
+
 citizenDao.delete("IND#2"); // Delete a row by it's row key
 ```
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for a more detailed example)
@@ -168,6 +178,17 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 </dependency>
 ```
 (See artifact details for [com.flipkart:hbase-object-mapper:1.1]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.1%7Cjar)) on **Maven Central**)
+
+## How to build?
+To build this project, follow below steps:
+
+ * Do a `git clone` of this repository
+ * Checkout latest stable version `git checkout v1.1`
+ * Execute `mvn clean install` from shell
+
+Currently, this library depends on Hadoop and HBase from Cloudera version 4. If you're using a different version (or even different distribution like [HortonWorks](http://hortonworks.com/)), change the versions in [pom.xml](./pom.xml) to desired ones and do a `mvn clean install`.
+
+**Please note**: Test cases are very comprehensive - they even spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). So, build times can sometimes be longer.
 
 ## Releases
 

@@ -23,14 +23,28 @@
     </licenses>
     <developers>
         <developer>
+            <id>m-manu</id>
             <name>Manu Manjunath</name>
-            <email>manu.m.karnataki@gmail.com</email>
+            <email>manu(dot)m(dot)karnataki(at)gmail(dot)com</email>
+            <roles>
+                <role>design</role>
+                <role>development</role>
+            </roles>
+            <organization>Flipkart</organization>
+            <organizationUrl>http://www.flipkart.com/</organizationUrl>
         </developer>
     </developers>
+    <repositories>
+        <repository>
+            <id>cloudera-repos</id>
+            <name>Cloudera Repos</name>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
+    </repositories>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <version.hadoop>2.0.0-cdh4.5.0</version.hadoop>
-        <version.hbase>0.94.6-cdh4.5.0</version.hbase>
+        <version.hadoop>2.0.0-cdh4.7.0</version.hadoop>
+        <version.hbase>0.94.15-cdh4.7.0</version.hbase>
     </properties>
     <distributionManagement>
         <repository>
@@ -130,7 +144,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.2</version>
+                <version>3.3</version>
                 <configuration>
                     <source>1.6</source>
                     <target>1.6</target>

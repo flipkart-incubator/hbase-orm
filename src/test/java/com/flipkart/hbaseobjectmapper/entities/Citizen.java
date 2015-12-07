@@ -1,14 +1,12 @@
 package com.flipkart.hbaseobjectmapper.entities;
 
-import com.flipkart.hbaseobjectmapper.HBColumn;
-import com.flipkart.hbaseobjectmapper.HBRecord;
-import com.flipkart.hbaseobjectmapper.HBRowKey;
-import com.flipkart.hbaseobjectmapper.HBTable;
+import com.flipkart.hbaseobjectmapper.*;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.NavigableMap;
 
 @ToString
 @EqualsAndHashCode
@@ -38,6 +36,8 @@ public class Citizen implements HBRecord {
     private BigDecimal f4;
     @HBColumn(family = "optional", column = "pincode", serializeAsString = true)
     private Integer pincode;
+    @HBColumnMultiVersion(family = "optional", column = "phone_number")
+    private NavigableMap<Long, Integer> phoneNumberHistory;
     @HBColumn(family = "optional", column = "flags")
     private Map<String, Integer> extraFlags;
     @HBColumn(family = "optional", column = "dependents")
@@ -46,10 +46,11 @@ public class Citizen implements HBRecord {
     public Citizen() {
     }
 
-    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, Map<String, Integer> extraFlags, Dependents dependents) {
+    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, NavigableMap<Long, Integer> phoneNumberHistory, Map<String, Integer> extraFlags, Dependents dependents) {
         this.countryCode = countryCode;
         this.uid = uid;
         this.name = name;
+        this.phoneNumberHistory = phoneNumberHistory;
         this.extraFlags = extraFlags;
         this.dependents = dependents;
         this.nameInUpper = name == null ? null : name.toUpperCase();
@@ -121,5 +122,13 @@ public class Citizen implements HBRecord {
 
     public Map<String, Integer> getExtraFlags() {
         return extraFlags;
+    }
+
+    public Dependents getDependents() {
+        return dependents;
+    }
+
+    public NavigableMap<Long, Integer> getPhoneNumberHistory() {
+        return phoneNumberHistory;
     }
 }

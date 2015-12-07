@@ -4,8 +4,4 @@ public class EmptyConstructorInaccessibleException extends IllegalArgumentExcept
     public EmptyConstructorInaccessibleException(String s) {
         super(s);
     }
-
-    public EmptyConstructorInaccessibleException(String s, Throwable throwable) {
-        super(s, throwable);
-    }
 }
