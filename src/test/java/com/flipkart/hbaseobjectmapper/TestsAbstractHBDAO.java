@@ -223,17 +223,17 @@ public class TestsAbstractHBDAO {
     }
 
     public void testHBaseMultiVersionDAO() throws Exception {
+        final int NUM_VERSIONS = 3;
         Double[] testNumbers = new Double[]{-1.0, Double.MAX_VALUE, Double.MIN_VALUE, 3.14159, 2.71828, 1.0};
-        Double[] testNumbersOfRange = Arrays.copyOfRange(testNumbers, testNumbers.length - 3, testNumbers.length);
+        Double[] testNumbersOfRange = Arrays.copyOfRange(testNumbers, testNumbers.length - NUM_VERSIONS, testNumbers.length);
         // Written as unversioned, read as versioned
         List<HBRecord> objs = new ArrayList<HBRecord>();
         for (Double n : testNumbers) {
             objs.add(new CrawlNoVersion("key").setF1(n));
         }
         crawlNoVersionDAO.persist(objs);
-        Crawl crawl = crawlDAO.get("key", 3);
-        Double[] outputNumbers = crawl.getF1().values().toArray(new Double[3]);
-        assertArrayEquals("Issue with version history implementation when written as unversioned and read as versioned", testNumbersOfRange, outputNumbers);
+        Crawl crawl = crawlDAO.get("key", NUM_VERSIONS);
+        assertEquals("Issue with version history implementation when written as unversioned and read as versioned", 1.0, crawl.getF1().values().iterator().next(), 1e-9);
         crawlDAO.delete("key");
         Crawl versioned = crawlDAO.get("key");
         assertNull("Deleted row (with key " + versioned + ") still exists when accessed as versioned DAO", versioned);
@@ -250,7 +250,7 @@ public class TestsAbstractHBDAO {
         crawlDAO.persist(crawl2);
         CrawlNoVersion crawlNoVersion = crawlNoVersionDAO.get("key2");
         assertEquals("Entry with the highest version (i.e. timestamp) isn't the one that was returned by DAO get", crawlNoVersion.getF1(), testNumbers[testNumbers.length - 1]);
-        assertArrayEquals("Issue with version history implementation when written as versioned and read as unversioned", testNumbersOfRange, crawlDAO.get("key2", 3).getF1().values().toArray());
+        assertArrayEquals("Issue with version history implementation when written as versioned and read as unversioned", testNumbersOfRange, crawlDAO.get("key2", NUM_VERSIONS).getF1().values().toArray());
         // Deletion tests:
 
         // Written as unversioned, deleted as unversioned:
