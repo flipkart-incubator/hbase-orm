@@ -174,16 +174,16 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.1</version>
+	<version>1.2</version>
 </dependency>
 ```
-(See artifact details for [com.flipkart:hbase-object-mapper:1.1]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.1%7Cjar)) on **Maven Central**)
+(See artifact details for [com.flipkart:hbase-object-mapper:1.2]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.1%7Cjar)) on **Maven Central**)
 
 ## How to build?
 To build this project, follow below steps:
 
  * Do a `git clone` of this repository
- * Checkout latest stable version `git checkout v1.1`
+ * Checkout latest stable version `git checkout v1.2`
  * Execute `mvn clean install` from shell
 
 Currently, this library depends on Hadoop and HBase from Cloudera version 4. If you're using a different version (or even different distribution like [HortonWorks](http://hortonworks.com/)), change the versions in [pom.xml](./pom.xml) to desired ones and do a `mvn clean install`.
@@ -200,6 +200,6 @@ If you intend to request a feature or report a bug, you may use [Github Issues f
 
 ## License
 
-Copyright 2015 Flipkart Internet Pvt Ltd.
+Copyright 2016 Flipkart Internet Pvt Ltd.
 
 Licensed under the [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or it's source code except in compliance with the License.
