@@ -23,13 +23,13 @@ import java.util.concurrent.*;
 import static org.junit.Assert.*;
 
 public class TestsAbstractHBDAO {
-    HBaseTestingUtility utility = new HBaseTestingUtility();
+    final HBaseTestingUtility utility = new HBaseTestingUtility();
     Configuration configuration;
     CitizenDAO citizenDao;
     CitizenSummaryDAO citizenSummaryDAO;
     CrawlDAO crawlDAO;
     CrawlNoVersionDAO crawlNoVersionDAO;
-    List<Citizen> testObjs = TestObjects.validObjsNoVersion;
+    final List<Citizen> testObjs = TestObjects.validObjectsNoVersion;
     final static long CLUSTER_START_TIMEOUT = 30;
 
     class ClusterStarter implements Callable<MiniHBaseCluster> {
@@ -51,7 +51,7 @@ public class TestsAbstractHBDAO {
     }
 
     private static class ActualTablesCreator implements TablesCreator {
-        private HBaseAdmin hBaseAdmin;
+        private final HBaseAdmin hBaseAdmin;
 
         private ActualTablesCreator(HBaseAdmin hBaseAdmin) {
             this.hBaseAdmin = hBaseAdmin;
@@ -67,7 +67,7 @@ public class TestsAbstractHBDAO {
                 hBaseAdmin.deleteTable(tableName);
                 System.out.println("[DONE]");
             }
-            HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
+            HTableDescriptor tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
             for (String columnFamily : columnFamilies) {
                 tableDescriptor.addFamily(new HColumnDescriptor(columnFamily).setMaxVersions(numVersions));
             }
@@ -79,7 +79,7 @@ public class TestsAbstractHBDAO {
 
     private static class InMemoryTablesCreator implements TablesCreator {
 
-        private HBaseTestingUtility utility;
+        private final HBaseTestingUtility utility;
 
         private InMemoryTablesCreator(HBaseTestingUtility utility) {
             this.utility = utility;
@@ -251,6 +251,38 @@ public class TestsAbstractHBDAO {
         CrawlNoVersion crawlNoVersion = crawlNoVersionDAO.get("key2");
         assertEquals("Entry with the highest version (i.e. timestamp) isn't the one that was returned by DAO get", crawlNoVersion.getF1(), testNumbers[testNumbers.length - 1]);
         assertArrayEquals("Issue with version history implementation when written as versioned and read as unversioned", testNumbersOfRange, crawlDAO.get("key2", NUM_VERSIONS).getF1().values().toArray());
+
+        List<String> rowKeysList = new ArrayList<String>();
+        for (int v = 0; v <= 9; v++) {
+            for (int k = 1; k <= 4; k++) {
+                String key = "oKey" + k;
+                crawlDAO.persist(new Crawl(key).addF1((double) v));
+                rowKeysList.add(key);
+            }
+        }
+        String[] rowKeys = rowKeysList.toArray(new String[rowKeysList.size()]);
+
+        Set<Double> oldestValuesRangeScan = new HashSet<Double>(), oldestValuesBulkScan = new HashSet<Double>();
+        for (int k = 1; k <= NUM_VERSIONS; k++) {
+            Set<Double> latestValuesRangeScan = new HashSet<Double>();
+            NavigableMap<String, NavigableMap<Long, Object>> fieldValues1 = crawlDAO.fetchFieldValues("oKey0", "oKey9", "f1", k);
+            for (NavigableMap.Entry<String, NavigableMap<Long, Object>> e : fieldValues1.entrySet()) {
+                latestValuesRangeScan.add((Double) e.getValue().lastEntry().getValue());
+                oldestValuesRangeScan.add((Double) e.getValue().firstEntry().getValue());
+            }
+            assertTrue("When fetching multiple versions of a field, the latest version of field is not as expected", latestValuesRangeScan.size() == 1);
+            Set<Double> latestValuesBulkScan = new HashSet<Double>();
+            Map<String, NavigableMap<Long, Object>> fieldValues2 = crawlDAO.fetchFieldValues(rowKeys, "f1", k);
+            for (NavigableMap.Entry<String, NavigableMap<Long, Object>> e : fieldValues2.entrySet()) {
+                latestValuesBulkScan.add((Double) e.getValue().lastEntry().getValue());
+                oldestValuesBulkScan.add((Double) e.getValue().firstEntry().getValue());
+            }
+            assertTrue("When fetching multiple versions of a field, the latest version of field is not as expected", latestValuesBulkScan.size() == 1);
+        }
+        assertTrue("When fetching multiple versions of a field through bulk scan, the oldest version of field is not as expected", oldestValuesRangeScan.size() == NUM_VERSIONS);
+        assertTrue("When fetching multiple versions of a field through range scan, the oldest version of field is not as expected", oldestValuesBulkScan.size() == NUM_VERSIONS);
+        assertEquals("Fetch by array and fetch by range differ", oldestValuesRangeScan, oldestValuesBulkScan);
+
         // Deletion tests:
 
         // Written as unversioned, deleted as unversioned:
@@ -276,6 +308,7 @@ public class TestsAbstractHBDAO {
         crawlDAO.persist(new Crawl(deleteKey4).addF1(10.04));
         crawlNoVersionDAO.delete(deleteKey4);
         assertNull("Row with key '" + deleteKey4 + "' exists, when written through versioned DAO and deleted through unversioned DAO!", crawlNoVersionDAO.get(deleteKey4));
+
     }
 
 

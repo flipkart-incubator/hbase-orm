@@ -9,7 +9,7 @@ import org.apache.hadoop.io.IntWritable;
 import java.io.IOException;
 
 public class CitizenReducer extends TableReducer<ImmutableBytesWritable, IntWritable, ImmutableBytesWritable> {
-    HBObjectMapper hbObjectMapper = new HBObjectMapper();
+    private final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 
     @Override
     protected void reduce(ImmutableBytesWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {

@@ -3,4 +3,4 @@
 /output/
 /out/
 /target/
-*.versionsBackup
+.DS_Store

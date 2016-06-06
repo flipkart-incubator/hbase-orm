@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.io.Serializable;
 import java.util.List;
 
 @ToString
 @EqualsAndHashCode
-public class Dependents {
+public class Dependents implements Serializable {
     @JsonProperty
     private Integer uidWife;
     @JsonProperty

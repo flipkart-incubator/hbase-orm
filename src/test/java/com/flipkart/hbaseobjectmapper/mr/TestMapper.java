@@ -1,10 +1,10 @@
 package com.flipkart.hbaseobjectmapper.mr;
 
-import com.flipkart.hbaseobjectmapper.HBObjectMapper;
 import com.flipkart.hbaseobjectmapper.TestObjects;
 import com.flipkart.hbaseobjectmapper.TestUtil;
 import com.flipkart.hbaseobjectmapper.Util;
 import com.flipkart.hbaseobjectmapper.entities.Citizen;
+import com.flipkart.hbaseobjectmapper.mr.lib.AbstractMRTest;
 import com.flipkart.hbaseobjectmapper.mr.lib.TableMapDriver;
 import com.flipkart.hbaseobjectmapper.mr.samples.CitizenMapper;
 import org.apache.hadoop.hbase.client.Result;
@@ -14,23 +14,24 @@ import org.apache.hadoop.mrunit.types.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class TestMapper {
+public class TestMapper extends AbstractMRTest {
 
-    HBObjectMapper hbObjectMapper = new HBObjectMapper();
-    TableMapDriver<ImmutableBytesWritable, IntWritable> mapDriver;
+    private TableMapDriver<ImmutableBytesWritable, IntWritable> mapDriver;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         mapDriver = TableMapDriver.newTableMapDriver(new CitizenMapper());
+        super.setUp(mapDriver.getConfiguration());
     }
 
     @Test
-    public void testSingle() throws Exception {
-        Citizen citizen = TestObjects.validObjs.get(0);
+    public void testSingle() throws IOException {
+        Citizen citizen = TestObjects.validObjects.get(0);
         mapDriver
                 .withInput(
                         hbObjectMapper.getRowKey(citizen),
@@ -42,8 +43,8 @@ public class TestMapper {
 
 
     @Test
-    public void testMultiple() throws Exception {
-        List<Pair<ImmutableBytesWritable, Result>> citizens = TestUtil.writeValueAsRowKeyResultPair(TestObjects.validObjs);
+    public void testMultiple() throws IOException {
+        List<Pair<ImmutableBytesWritable, Result>> citizens = TestUtil.writeValueAsRowKeyResultPair(TestObjects.validObjects);
         List<Pair<ImmutableBytesWritable, IntWritable>> mapResults = mapDriver.withAll(citizens).run();
         for (Pair<ImmutableBytesWritable, IntWritable> mapResult : mapResults) {
             assertEquals(Util.ibwToStr(mapResult.getFirst()), "key");

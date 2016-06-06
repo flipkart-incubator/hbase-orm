@@ -14,7 +14,7 @@ import static com.flipkart.hbaseobjectmapper.TestUtil.triplet;
 
 
 public class TestObjects {
-    public static final List<Citizen> validObjsNoVersion = Arrays.asList(
+    public static final List<Citizen> validObjectsNoVersion = Arrays.asList(
             new Citizen("IND", 101, "Manu", (short) 30, 30000, false, 2.3f, 4.33, 34L, new BigDecimal(100), 560034, new TreeMap<Long, Integer>() {
                 {
                     put(System.currentTimeMillis(), 100001);
@@ -28,10 +28,10 @@ public class TestObjects {
             new Citizen("IND", 102, "Sathish", (short) 28, null, false, 2.3f, 4.33, -34L, new BigDecimal(100), 560034, null, new HashMap<String, Integer>(), new Dependents(131, null)),
             new Citizen("IND", 103, "Akshay", (short) -1, 50000, false, null, 4.33e34, 34L, null, 560034, null, null, null),
             new Citizen("IND", 104, "Ananda", (short) 5, 30000, null, -2.3f, 4.33, 34L, new BigDecimal(1e50), 560034, null, null, new Dependents()),
-            new Citizen("IND", 105, "Nilesh", null, null, null, null, null, null, null, null, null, null, new Dependents(null, Arrays.asList(141)))
+            new Citizen("IND", 105, "Nilesh", null, null, null, null, null, null, null, null, null, null, new Dependents(null, Arrays.asList(141, 142)))
     );
 
-    public static final List<Citizen> validObjsWithHBColumnMultiVersion = Arrays.asList(
+    public static final List<Citizen> validObjectsWithHBColumnMultiVersion = Arrays.asList(
             new Citizen("IND", 106, "Ram", null, 30000, true, null, null, null, null, null, new TreeMap<Long, Integer>() {
                 {
                     put(System.currentTimeMillis() - 365L * 86400L * 1000L, 20000); // last year
@@ -46,13 +46,14 @@ public class TestObjects {
             }, null, null)
     );
 
-    public static final List<Citizen> validObjs = new ArrayList<Citizen>() {
+    public static final List<Citizen> validObjects = new ArrayList<Citizen>() {
         {
-            addAll(TestObjects.validObjsNoVersion);
-            addAll(TestObjects.validObjsWithHBColumnMultiVersion);
+            addAll(TestObjects.validObjectsNoVersion);
+            addAll(TestObjects.validObjectsWithHBColumnMultiVersion);
         }
     };
-    public static final List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidObjs = Arrays.asList(
+    @SuppressWarnings("unchecked")
+    public static final List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidObjects = Arrays.asList(
             triplet(new Citizen("IND", -1, null, null, null, null, null, null, null, null, null, null, null, null), "all fields empty", AllHBColumnFieldsNullException.class),
             triplet(new Citizen(null, -2, "row key field null 1", null, null, null, null, null, null, null, null, null, null, null), "one row key field null (variant 1)", HBRowKeyFieldCantBeNullException.class),
             triplet(new Citizen("IND", null, "row key field null 2", null, null, null, null, null, null, null, null, null, null, null), "one row key field null (variant 2)", HBRowKeyFieldCantBeNullException.class),

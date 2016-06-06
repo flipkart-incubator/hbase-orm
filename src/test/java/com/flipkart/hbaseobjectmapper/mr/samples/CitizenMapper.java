@@ -12,7 +12,7 @@ import java.io.IOException;
 import static com.flipkart.hbaseobjectmapper.Util.strToIbw;
 
 public class CitizenMapper extends TableMapper<ImmutableBytesWritable, IntWritable> {
-    HBObjectMapper hbObjectMapper = new HBObjectMapper();
+    private final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 
     @Override
     protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException, InterruptedException {

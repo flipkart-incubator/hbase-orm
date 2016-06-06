@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class TestUtil {
-    private static HBObjectMapper hbObjectMapper = new HBObjectMapper();
+    private static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 
     public static Pair<ImmutableBytesWritable, Result> writeValueAsRowKeyResultPair(HBRecord obj) {
         return new Pair<ImmutableBytesWritable, Result>(hbObjectMapper.getRowKey(obj), hbObjectMapper.writeValueAsResult(obj));

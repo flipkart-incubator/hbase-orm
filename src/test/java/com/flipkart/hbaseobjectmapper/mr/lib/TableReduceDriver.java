@@ -1,15 +1,15 @@
 package com.flipkart.hbaseobjectmapper.mr.lib;
 
-import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mrunit.mapreduce.ReduceDriver;
 
-public class TableReduceDriver<KEYIN, VALUEIN, KEYOUT> extends ReduceDriver<KEYIN, VALUEIN, KEYOUT, Writable> {
+public class TableReduceDriver<KEYIN, VALUEIN, KEYOUT> extends ReduceDriver<KEYIN, VALUEIN, KEYOUT, Mutation> {
     public TableReduceDriver() {
         super();
     }
 
-    public TableReduceDriver(final Reducer<KEYIN, VALUEIN, KEYOUT, Writable> r) {
+    public TableReduceDriver(final Reducer<KEYIN, VALUEIN, KEYOUT, Mutation> r) {
         super(r);
     }
 
@@ -17,7 +17,7 @@ public class TableReduceDriver<KEYIN, VALUEIN, KEYOUT> extends ReduceDriver<KEYI
         return new TableReduceDriver<KEYIN, VALUEIN, KEYOUT>();
     }
 
-    public static <KEYIN, VALUEIN, KEYOUT> TableReduceDriver<KEYIN, VALUEIN, KEYOUT> newTableReduceDriver(final Reducer<KEYIN, VALUEIN, KEYOUT, Writable> r) {
+    public static <KEYIN, VALUEIN, KEYOUT> TableReduceDriver<KEYIN, VALUEIN, KEYOUT> newTableReduceDriver(final Reducer<KEYIN, VALUEIN, KEYOUT, Mutation> r) {
         return new TableReduceDriver<KEYIN, VALUEIN, KEYOUT>(r);
     }
 
