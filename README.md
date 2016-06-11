@@ -3,7 +3,7 @@
 ## Introduction
 This compact utility library is an annotation based *object mapper* for HBase (written in Java) that helps you:
 
-* convert your bean-like objects to HBase rows and vice-versa (for use in Map/Reduce jobs on HBase tables and their unit-tests)
+* convert your bean-like objects to HBase rows and vice-versa (for use in MapReduce jobs on HBase tables and their unit-tests)
 * define *data access objects* for entities that map to HBase rows (for random single/range/bulk access of rows of an HBase table)
 
 ## Usage
@@ -49,7 +49,7 @@ Now, for above definition of your `Citizen` class,
 * you can use methods in `HBObjectMapper` class to convert `Citizen` objects to HBase's `Put` and `Result` objects and vice-versa
 * you can inherit from class `AbstractHBDAO` that contains methods like `get` (for random single/bulk/range access of rows), `persist` (for writing rows) and `delete` (for deleting rows)
 
-## Map/Reduce use-cases
+## MapReduce use-cases
 
 ### Use in `map()`
 HBase's `Result` object can be converted to your bean-like object using below method: 
@@ -125,7 +125,7 @@ Citizen citizen = hbObjectMapper.readValue(reducerResult.getFirst(), (Put) reduc
 See file [TestCitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenReducer.java) for full sample code that unit-tests a reducer using [MRUnit](https://mrunit.apache.org/)
 
 ## HBase ORM
-Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. Nevertheless, you can use this library as an HBase-ORM too!
+Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. So, this library doesn't intend to evolve as a full-fledged ORM.
 
 This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
 
@@ -149,12 +149,18 @@ Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Confi
 // Create a data access object:
 CitizenDAO citizenDao = new CitizenDAO(configuration);
 
-// Fetch an row from "citizens" HBase table with row key "IND#1":
+// Fetch a row from "citizens" HBase table with row key "IND#1":
 Citizen pe = citizenDao.get("IND#1");
 
+Citizen[] ape = citizenDao.get(new String[] {"IND#1", "IND#2"}); //bulk get
+
+// In below, note that "IND#1" is inclusive and "IND#5" is exclusive
 List<Citizen> lpe = citizenDao.get("IND#1", "IND#5"); //range get
 
-Citizen[] ape = citizenDao.get(new String[] {"IND#1", "IND#2"}); //bulk get
+// for row keys in range ["IND#1", "IND#5"), fetch 3 versions of field 'phoneNumberHistory' 
+NavigableMap<String /* row key */, NavigableMap<Long /* timestamp */, Object /* column value */>> phoneNumberHistory 
+	= citizenDao.fetchFieldValues("IND#1", "IND#5", "phoneNumberHistory", 3);
+//(bulk variant of above range method is also available)
 
 pe.setPincode(560034); // change a field
 
@@ -163,6 +169,10 @@ citizenDao.persist(pe); // Save it back to HBase
 citizenDao.delete(pe); // Delete a row by it's object reference
 
 citizenDao.delete("IND#2"); // Delete a row by it's row key
+// (bulk variant of delete method is also available)
+
+citizenDao.getHBaseTable() // returns HTable instance (in case you want to directly play around) 
+
 ```
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for a more detailed example)
 
@@ -174,19 +184,19 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.2</version>
+	<version>1.3</version>
 </dependency>
 ```
-(See artifact details for [com.flipkart:hbase-object-mapper:1.2]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.1%7Cjar)) on **Maven Central**)
+(See artifact details for [com.flipkart:hbase-object-mapper:1.3]((http://search.maven.org/#artifactdetails%7Ccom.flipkart%7Chbase-object-mapper%7C1.3%7Cjar)) on **Maven Central**)
 
 ## How to build?
 To build this project, follow below steps:
 
  * Do a `git clone` of this repository
- * Checkout latest stable version `git checkout v1.2`
+ * Checkout latest stable version `git checkout v1.3`
  * Execute `mvn clean install` from shell
 
-Currently, this library depends on Hadoop and HBase from Cloudera version 4. If you're using a different version (or even different distribution like [HortonWorks](http://hortonworks.com/)), change the versions in [pom.xml](./pom.xml) to desired ones and do a `mvn clean install`.
+Currently, projects that use this library are running to [Hortonworks Data Platform v2.2](http://hortonworks.com/blog/announcing-hdp-2-2/) (corresponds to Hadoop 2.6 and HBase 0.98). However, if you're using a different version (or even different distribution like [Cloudera](http://www.cloudera.com/)), you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
 
 **Please note**: Test cases are very comprehensive - they even spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). So, build times can sometimes be longer.
 
