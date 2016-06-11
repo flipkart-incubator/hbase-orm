@@ -1,6 +1,9 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.codec.*;
+import com.flipkart.hbaseobjectmapper.codec.Codec;
+import com.flipkart.hbaseobjectmapper.codec.DeserializationException;
+import com.flipkart.hbaseobjectmapper.codec.JacksonJsonCodec;
+import com.flipkart.hbaseobjectmapper.codec.SerializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.*;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -52,14 +55,14 @@ public class HBObjectMapper {
         }
     });
 
-    private static final Map<String, Method> fromBytesMethods, toBytesMethods;
-    private static final Map<String, Constructor> constructors;
+    private static final Map<Class, Method> fromBytesMethods, toBytesMethods;
+    private static final Map<Class, Constructor> constructors;
 
     static {
         try {
-            fromBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
-            toBytesMethods = new HashMap<String, Method>(fromBytesMethodNames.size());
-            constructors = new HashMap<String, Constructor>(fromBytesMethodNames.size());
+            fromBytesMethods = new HashMap<Class, Method>(fromBytesMethodNames.size());
+            toBytesMethods = new HashMap<Class, Method>(fromBytesMethodNames.size());
+            constructors = new HashMap<Class, Constructor>(fromBytesMethodNames.size());
             Method fromBytesMethod, toBytesMethod;
             Constructor<?> constructor;
             for (Map.Entry<Class, String> e : fromBytesMethodNames.entrySet()) {
@@ -68,9 +71,9 @@ public class HBObjectMapper {
                 fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
                 toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
                 constructor = clazz.getConstructor(String.class);
-                fromBytesMethods.put(clazz.getName(), fromBytesMethod);
-                toBytesMethods.put(clazz.getName(), toBytesMethod);
-                constructors.put(clazz.getName(), constructor);
+                fromBytesMethods.put(clazz, fromBytesMethod);
+                toBytesMethods.put(clazz, toBytesMethod);
+                constructors.put(clazz, constructor);
             }
         } catch (Exception ex) {
             throw new BadHBaseLibStateException(ex);
@@ -145,8 +148,8 @@ public class HBObjectMapper {
             if (value == null)
                 return null;
             Class<? extends Serializable> clazz = value.getClass();
-            if (toBytesMethods.containsKey(clazz.getName())) {
-                Method toBytesMethod = toBytesMethods.get(clazz.getName());
+            if (toBytesMethods.containsKey(clazz)) {
+                Method toBytesMethod = toBytesMethods.get(clazz);
                 return serializeAsString ? Bytes.toBytes(String.valueOf(value)) : (byte[]) toBytesMethod.invoke(null, value);
             } else {
                 try {
@@ -506,17 +509,16 @@ public class HBObjectMapper {
             return null;
         Object fieldValue;
         try {
-            if (type instanceof Class && fromBytesMethods.containsKey(((Class) type).getName())) {
-                String className = ((Class) type).getName();
+            if (type instanceof Class && fromBytesMethods.containsKey(type)) {
                 if (serializeAsString) {
-                    Constructor constructor = constructors.get(className);
+                    Constructor constructor = constructors.get(type);
                     try {
                         fieldValue = constructor.newInstance(Bytes.toString(value));
                     } catch (Exception ex) {
                         fieldValue = null;
                     }
                 } else {
-                    Method method = fromBytesMethods.get(className);
+                    Method method = fromBytesMethods.get(type);
                     fieldValue = method.invoke(null, new Object[]{value});
                 }
             } else {

@@ -28,9 +28,6 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
     private static final int DEFAULT_NUM_VERSIONS = 1;
     protected static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
     protected final HTable hTable;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final TypeToken<T> typeToken = new TypeToken<T>(getClass()) {
-    };
     protected final Class<T> hbRecordClass;
     protected final Map<String, Field> fields;
 
@@ -41,7 +38,8 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      */
     @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration conf) throws IOException {
-        hbRecordClass = (Class<T>) typeToken.getRawType();
+        hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
+        }.getRawType();
         if (hbRecordClass == null || hbRecordClass == HBRecord.class)
             throw new IllegalStateException("Unable to resolve HBase record type (record class is resolving to " + hbRecordClass + ")");
         HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
