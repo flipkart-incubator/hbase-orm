@@ -4,7 +4,7 @@ import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.HBRowKey;
 
-public class UninstantiatableClass implements HBRecord {
+public class UninstantiatableClass implements HBRecord<String> {
     @HBRowKey
     private Integer uid;
     @HBColumn(family = "main", column = "name")

@@ -30,7 +30,7 @@ public class TestsAbstractHBDAO {
     CrawlDAO crawlDAO;
     CrawlNoVersionDAO crawlNoVersionDAO;
     final List<Citizen> testObjs = TestObjects.validObjectsNoVersion;
-    final static long CLUSTER_START_TIMEOUT = 30;
+    final static long CLUSTER_START_TIMEOUT = 60;
 
     class ClusterStarter implements Callable<MiniHBaseCluster> {
         private final HBaseTestingUtility utility;
@@ -216,10 +216,10 @@ public class TestsAbstractHBDAO {
         Citizen citizenToBeDeleted = testObjs.get(0);
         citizenDao.delete(citizenToBeDeleted);
         assertNull("Record was not deleted: " + citizenToBeDeleted, citizenDao.get(citizenToBeDeleted.composeRowKey()));
-        Citizen[] citizensToBeDeleted = new Citizen[]{testObjs.get(1), testObjs.get(2)};
+        List<Citizen> citizensToBeDeleted = Arrays.asList(testObjs.get(1), testObjs.get(2));
         citizenDao.delete(citizensToBeDeleted);
-        assertNull("Record was not deleted: " + citizensToBeDeleted[0], citizenDao.get(citizensToBeDeleted[0].composeRowKey()));
-        assertNull("Record was not deleted: " + citizensToBeDeleted[1], citizenDao.get(citizensToBeDeleted[1].composeRowKey()));
+        assertNull("Record was not deleted: " + citizensToBeDeleted.get(0), citizenDao.get(citizensToBeDeleted.get(0).composeRowKey()));
+        assertNull("Record was not deleted: " + citizensToBeDeleted.get(1), citizenDao.get(citizensToBeDeleted.get(1).composeRowKey()));
     }
 
     public void testHBaseMultiVersionDAO() throws Exception {
@@ -227,7 +227,7 @@ public class TestsAbstractHBDAO {
         Double[] testNumbers = new Double[]{-1.0, Double.MAX_VALUE, Double.MIN_VALUE, 3.14159, 2.71828, 1.0};
         Double[] testNumbersOfRange = Arrays.copyOfRange(testNumbers, testNumbers.length - NUM_VERSIONS, testNumbers.length);
         // Written as unversioned, read as versioned
-        List<HBRecord> objs = new ArrayList<HBRecord>();
+        List<CrawlNoVersion> objs = new ArrayList<CrawlNoVersion>();
         for (Double n : testNumbers) {
             objs.add(new CrawlNoVersion("key").setF1(n));
         }

@@ -3,7 +3,7 @@ package com.flipkart.hbaseobjectmapper.entities;
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 
-public class ClassWithNoHBRowKeys implements HBRecord {
+public class ClassWithNoHBRowKeys implements HBRecord<String> {
     protected String key = "key";
 
     @Override

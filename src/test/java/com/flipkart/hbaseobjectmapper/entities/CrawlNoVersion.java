@@ -8,7 +8,7 @@ import lombok.ToString;
 
 @HBTable("crawl")
 @ToString
-public class CrawlNoVersion implements HBRecord {
+public class CrawlNoVersion implements HBRecord<String> {
     @HBRowKey
     String key;
 

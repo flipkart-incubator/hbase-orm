@@ -11,7 +11,7 @@ import java.util.NavigableMap;
 @ToString
 @EqualsAndHashCode
 @HBTable("citizens")
-public class Citizen implements HBRecord {
+public class Citizen implements HBRecord<String> {
     private static final String KEY_DELIM = "#";
     @HBRowKey
     private String countryCode;

@@ -4,6 +4,10 @@ import java.io.*;
 import java.lang.reflect.Type;
 
 public class JavaObjectStreamCodec implements Codec {
+    /*
+     * @inherit
+     */
+    @Override
     public byte[] serialize(Serializable object) throws SerializationException {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -15,6 +19,9 @@ public class JavaObjectStreamCodec implements Codec {
         }
     }
 
+    /*
+    * @inherit
+    */
     @Override
     public Serializable deserialize(byte[] bytes, Type type) throws DeserializationException {
         try {
@@ -26,6 +33,9 @@ public class JavaObjectStreamCodec implements Codec {
         }
     }
 
+    /*
+    * @inherit
+    */
     @Override
     public boolean canDeserialize(Type type) {
         return true;

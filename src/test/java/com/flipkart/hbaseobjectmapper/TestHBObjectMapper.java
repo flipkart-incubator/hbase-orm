@@ -1,5 +1,6 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.flipkart.hbaseobjectmapper.codec.DeserializationException;
 import com.flipkart.hbaseobjectmapper.entities.*;
 import com.flipkart.hbaseobjectmapper.exceptions.*;
 import org.apache.hadoop.hbase.client.Put;
@@ -24,9 +25,9 @@ public class TestHBObjectMapper {
             triplet(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column", MappedColumnCantBeTransientException.class),
             triplet(new ClassWithNoHBColumns(), "Class with no fields mapped with HBColumn", MissingHBColumnFieldsException.class),
             triplet(new ClassWithNoHBRowKeys(), "Class with no fields mapped with HBRowKey", MissingHBRowKeyFieldsException.class),
-            triplet(new ClassesWithFieldIncomptibleWithHBColumnMultiVersion.NotMap(), "Class with an incompatible field (not Map) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
-            triplet(new ClassesWithFieldIncomptibleWithHBColumnMultiVersion.NotNavigableMap(), "Class with an incompatible field (not NavigableMap) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
-            triplet(new ClassesWithFieldIncomptibleWithHBColumnMultiVersion.EntryKeyNotLong(), "Class with an incompatible field (NavigableMap's entry key not Long) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class)
+            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotMap(), "Class with an incompatible field (not Map) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
+            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotNavigableMap(), "Class with an incompatible field (not NavigableMap) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
+            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.EntryKeyNotLong(), "Class with an incompatible field (NavigableMap's entry key not Long) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class)
     );
 
     final HBObjectMapper hbMapper = new HBObjectMapper();
@@ -36,7 +37,7 @@ public class TestHBObjectMapper {
     final Put somePut = hbMapper.writeValueAsPut(validObjs.get(0));
 
     @Test
-    public void testHBObjectMapper() {
+    public void testHBObjectMapper() throws DeserializationException {
         for (Citizen obj : validObjs) {
             System.out.printf("Original object: %s%n", obj);
             testResult(obj);
@@ -46,7 +47,7 @@ public class TestHBObjectMapper {
         }
     }
 
-    public void testResult(HBRecord p) {
+    public void testResult(HBRecord<String> p) throws DeserializationException {
         long start, end;
         start = System.currentTimeMillis();
         Result result = hbMapper.writeValueAsResult(p);
@@ -59,7 +60,7 @@ public class TestHBObjectMapper {
         System.out.printf("Time taken for Result->POJO = %dms%n%n", end - start);
     }
 
-    public void testResultWithRow(HBRecord p) {
+    public void testResultWithRow(HBRecord<String> p) throws DeserializationException {
         long start, end;
         Result result = hbMapper.writeValueAsResult(Arrays.asList(p, p)).get(0);
         ImmutableBytesWritable rowKey = Util.strToIbw(p.composeRowKey());
@@ -70,7 +71,7 @@ public class TestHBObjectMapper {
         System.out.printf("Time taken for Result+Row->POJO = %dms%n%n", end - start);
     }
 
-    public void testPut(HBRecord p) {
+    public void testPut(HBRecord<String> p) throws DeserializationException {
         long start, end;
         start = System.currentTimeMillis();
         Put put = hbMapper.writeValueAsPut(Arrays.asList(p, p)).get(0);
@@ -83,7 +84,7 @@ public class TestHBObjectMapper {
         System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
     }
 
-    public void testPutWithRow(HBRecord p) {
+    public void testPutWithRow(HBRecord<String> p) throws DeserializationException {
         long start, end;
         Put put = hbMapper.writeValueAsPut(p);
         ImmutableBytesWritable rowKey = Util.strToIbw(p.composeRowKey());
@@ -95,7 +96,7 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testInvalidRowKey() {
+    public void testInvalidRowKey() throws DeserializationException {
         Citizen e = TestObjects.validObjects.get(0);
         try {
             hbMapper.readValue("invalid row key", hbMapper.writeValueAsPut(e), Citizen.class);
@@ -112,7 +113,7 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testInvalidClasses() {
+    public void testInvalidClasses() throws DeserializationException {
         Set<String> exceptionMessages = new HashSet<String>();
         for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
             HBRecord record = p.getValue0();
@@ -192,7 +193,7 @@ public class TestHBObjectMapper {
 
     @Test
     @SuppressWarnings("ConstantConditions")
-    public void testEmptyResults() {
+    public void testEmptyResults() throws DeserializationException {
         Result nullResult = null, blankResult = new Result(), emptyResult = Result.EMPTY_RESULT;
         Citizen nullCitizen = hbMapper.readValue(nullResult, Citizen.class);
         assertNull("Null Result object should return null", nullCitizen);
@@ -203,7 +204,7 @@ public class TestHBObjectMapper {
 
     @Test
     @SuppressWarnings("ConstantConditions")
-    public void testEmptyPuts() {
+    public void testEmptyPuts() throws DeserializationException {
         Put nullPut = null;
         Citizen nullCitizen = hbMapper.readValue(nullPut, Citizen.class);
         assertNull("Null Put object should return null", nullCitizen);
@@ -211,7 +212,7 @@ public class TestHBObjectMapper {
 
     @Test
     public void testGetRowKey() {
-        ImmutableBytesWritable rowKey = hbMapper.getRowKey(new HBRecord() {
+        ImmutableBytesWritable rowKey = hbMapper.getRowKey(new HBRecord<String>() {
             @Override
             public String composeRowKey() {
                 return "rowkey";
@@ -224,7 +225,7 @@ public class TestHBObjectMapper {
         });
         assertEquals("Row keys don't match", rowKey, Util.strToIbw("rowkey"));
         try {
-            hbMapper.getRowKey(new HBRecord() {
+            hbMapper.getRowKey(new HBRecord<String>() {
                 @Override
                 public String composeRowKey() {
                     return null;
@@ -240,7 +241,7 @@ public class TestHBObjectMapper {
 
         }
         try {
-            hbMapper.getRowKey(new HBRecord() {
+            hbMapper.getRowKey(new HBRecord<String>() {
                 @Override
                 public String composeRowKey() {
                     throw new RuntimeException("Some blah");
@@ -264,7 +265,7 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testUninstantiatableClass() {
+    public void testUninstantiatableClass() throws DeserializationException {
         try {
             hbMapper.readValue(someResult, UninstantiatableClass.class);
             fail("If class can't be instantiated, a " + ObjectNotInstantiatableException.class.getName() + " was expected");
@@ -274,7 +275,7 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testHBColumnMultiVersion() {
+    public void testHBColumnMultiVersion() throws DeserializationException {
         Double[] testNumbers = new Double[]{3.14159, 2.71828, 0.0};
         for (Double n : testNumbers) {
             // Written as unversioned, read as versioned
@@ -284,10 +285,13 @@ public class TestHBObjectMapper {
             assertEquals("Column history size mismatch", 1, columnHistory.size());
             assertEquals(String.format("Inconsistency between %s and %s", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()), n, columnHistory.lastEntry().getValue());
             // Written as versioned, read as unversioned
-            Result result1 = hbMapper.writeValueAsResult(new Crawl("key").addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(n));
-            CrawlNoVersion unversioned = hbMapper.readValue(result1, CrawlNoVersion.class);
-            Double f1 = unversioned.getF1();
-            assertEquals(String.format("Inconsistency between %s and %s", HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName()), n, f1);
+            Crawl key = new Crawl("key").addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE);
+            Crawl versionedCrawl = key.addF1(n);
+            Result result1 = hbMapper.writeValueAsResult(versionedCrawl);
+            CrawlNoVersion unversionedCrawl = hbMapper.readValue(result1, CrawlNoVersion.class);
+            Double f1 = unversionedCrawl.getF1();
+            System.out.println(unversionedCrawl);
+            assertEquals(String.format("Inconsistency between %s and %s\nVersioned (persisted) object = %s\nUnversioned (retrieved) object = %s ", HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName(), versionedCrawl, unversionedCrawl), n, f1);
         }
     }
 }

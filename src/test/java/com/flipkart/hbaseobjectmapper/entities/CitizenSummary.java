@@ -9,7 +9,7 @@ import lombok.ToString;
 
 @ToString
 @HBTable("citizen_summary")
-public class CitizenSummary implements HBRecord {
+public class CitizenSummary implements HBRecord<String> {
 
     @HBRowKey
     private String key;

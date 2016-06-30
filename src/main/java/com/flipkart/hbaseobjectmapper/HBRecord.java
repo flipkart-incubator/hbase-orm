@@ -3,22 +3,24 @@ package com.flipkart.hbaseobjectmapper;
 import java.io.Serializable;
 
 /**
- * Entities that need to be mapped to HBase table need to implement this interface
+ * Entities that need to be mapped to HBase tables need to implement this interface
+ *
+ * @param <R> A type that's {@link Comparable} to itself and is {@link Serializable} (e.g. <code>String</code>, <code>Integer</code> etc)
  */
-public interface HBRecord extends Serializable {
+public interface HBRecord<R extends Serializable & Comparable<R>> extends Serializable {
 
     /**
-     * Forms the row key required for HBase from class variables
+     * Composes the row key required for HBase from class variables
      *
-     * @return Row key as string
+     * @return Row key as {@link Serializable} data type
      */
-    String composeRowKey();
+    R composeRowKey();
 
     /**
      * Assigns the class variables from row key string (from HBase) provided
      *
-     * @param rowKey Row key  as a string
+     * @param rowKey Row key as {@link Serializable} data type
      */
-    void parseRowKey(String rowKey);
+    void parseRowKey(R rowKey);
 
 }

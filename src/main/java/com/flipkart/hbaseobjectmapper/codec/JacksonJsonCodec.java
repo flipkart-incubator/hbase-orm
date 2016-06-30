@@ -10,6 +10,9 @@ public class JacksonJsonCodec implements Codec {
 
     protected final ObjectMapper objectMapper = new ObjectMapper();
 
+    /*
+    * @inherit
+    */
     @Override
     public byte[] serialize(Serializable object) throws SerializationException {
         try {
@@ -19,6 +22,9 @@ public class JacksonJsonCodec implements Codec {
         }
     }
 
+    /*
+    * @inherit
+    */
     @Override
     public Serializable deserialize(byte[] bytes, Type type) throws DeserializationException {
         try {
@@ -28,6 +34,10 @@ public class JacksonJsonCodec implements Codec {
         }
     }
 
+
+    /*
+    * @inherit
+    */
     @Override
     public boolean canDeserialize(Type type) {
         JavaType javaType = objectMapper.constructType(type);

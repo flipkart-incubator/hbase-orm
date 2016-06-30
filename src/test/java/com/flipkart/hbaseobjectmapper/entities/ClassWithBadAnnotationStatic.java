@@ -4,7 +4,7 @@ import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.HBRowKey;
 
-public class ClassWithBadAnnotationStatic implements HBRecord {
+public class ClassWithBadAnnotationStatic implements HBRecord<String> {
     @HBRowKey
     protected String key = "key";
 

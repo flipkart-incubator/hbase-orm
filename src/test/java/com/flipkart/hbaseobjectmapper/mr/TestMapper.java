@@ -32,10 +32,12 @@ public class TestMapper extends AbstractMRTest {
     @Test
     public void testSingle() throws IOException {
         Citizen citizen = TestObjects.validObjects.get(0);
+        org.apache.hadoop.hbase.util.Pair<ImmutableBytesWritable, Result> rowKeyResultPair = hbObjectMapper.writeValueAsRowKeyResultPair(citizen);
         mapDriver
                 .withInput(
-                        hbObjectMapper.getRowKey(citizen),
-                        hbObjectMapper.writeValueAsResult(citizen)
+                        rowKeyResultPair.getFirst(), // this line can alternatively be hbObjectMapper.getRowKey(citizen)
+                        rowKeyResultPair.getSecond() // this line can alternatively be hbObjectMapper.writeValueAsResult(citizen)
+
                 )
                 .withOutput(Util.strToIbw("key"), new IntWritable(citizen.getAge()))
                 .runTest();

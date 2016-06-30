@@ -7,7 +7,7 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 
-public class CrawlNoVersionDAO extends AbstractHBDAO<CrawlNoVersion> {
+public class CrawlNoVersionDAO extends AbstractHBDAO<String, CrawlNoVersion> {
 
     public CrawlNoVersionDAO(Configuration conf) throws IOException {
         super(conf);

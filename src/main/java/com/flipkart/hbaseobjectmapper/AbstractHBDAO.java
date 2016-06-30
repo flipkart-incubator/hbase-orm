@@ -10,6 +10,7 @@ import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -18,9 +19,10 @@ import java.util.*;
 /**
  * A <i>Data Access Object</i> class that enables simpler random access of HBase rows
  *
+ * @param <R> Type of row key
  * @param <T> Entity type that maps to an HBase row (type must implement {@link HBRecord})
  */
-public abstract class AbstractHBDAO<T extends HBRecord> {
+public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> {
 
     /**
      * Default number of versions to fetch
@@ -29,7 +31,7 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
     protected static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
     protected final HTable hTable;
     protected final Class<T> hbRecordClass;
-    protected final Map<String, Field> fields;
+    private final Map<String, Field> fields;
 
     /**
      * Constructs a data access object. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>
@@ -40,7 +42,7 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
     protected AbstractHBDAO(Configuration conf) throws IOException {
         hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
         }.getRawType();
-        if (hbRecordClass == null || hbRecordClass == HBRecord.class)
+        if (hbRecordClass == null)
             throw new IllegalStateException("Unable to resolve HBase record type (record class is resolving to " + hbRecordClass + ")");
         HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
         if (hbTable == null)
@@ -176,7 +178,7 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @return Row key of the persisted object, represented as a {@link String}
      * @throws IOException When HBase call fails
      */
-    public String persist(HBRecord object) throws IOException {
+    public R persist(HBRecord<R> object) throws IOException {
         Put put = hbObjectMapper.writeValueAsPut(object);
         hTable.put(put);
         return object.composeRowKey();
@@ -189,10 +191,10 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @return Row keys of the persisted objects, represented as a {@link String}
      * @throws IOException When HBase call fails
      */
-    public List<String> persist(List<? extends HBRecord> objects) throws IOException {
+    public List<R> persist(List<? extends HBRecord<R>> objects) throws IOException {
         List<Put> puts = new ArrayList<Put>(objects.size());
-        List<String> rowKeys = new ArrayList<String>(objects.size());
-        for (HBRecord object : objects) {
+        List<R> rowKeys = new ArrayList<R>(objects.size());
+        for (HBRecord<R> object : objects) {
             puts.add(hbObjectMapper.writeValueAsPut(object));
             rowKeys.add(object.composeRowKey());
         }
@@ -207,8 +209,8 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @param rowKey row key to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(String rowKey) throws IOException {
-        Delete delete = new Delete(Bytes.toBytes(rowKey));
+    public void delete(R rowKey) throws IOException {
+        Delete delete = new Delete(hbObjectMapper.rowKeyToBytes(rowKey));
         this.hTable.delete(delete);
     }
 
@@ -218,7 +220,7 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @param object Object to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(HBRecord object) throws IOException {
+    public void delete(HBRecord<R> object) throws IOException {
         this.delete(object.composeRowKey());
     }
 
@@ -228,10 +230,10 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
      * @param rowKeys row keys to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(String[] rowKeys) throws IOException {
+    public void delete(R[] rowKeys) throws IOException {
         List<Delete> deletes = new ArrayList<Delete>(rowKeys.length);
-        for (String rowKey : rowKeys) {
-            deletes.add(new Delete(Bytes.toBytes(rowKey)));
+        for (R rowKey : rowKeys) {
+            deletes.add(new Delete(hbObjectMapper.rowKeyToBytes(rowKey)));
         }
         this.hTable.delete(deletes);
     }
@@ -239,15 +241,15 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
     /**
      * Delete HBase rows by object references
      *
-     * @param objects Objects to delete
+     * @param records Records to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(HBRecord[] objects) throws IOException {
-        String[] rowKeys = new String[objects.length];
-        for (int i = 0; i < objects.length; i++) {
-            rowKeys[i] = objects[i].composeRowKey();
+    public void delete(List<? extends HBRecord<R>> records) throws IOException {
+        List<Delete> deletes = new ArrayList<Delete>(records.size());
+        for (HBRecord<R> record : records) {
+            deletes.add(new Delete(hbObjectMapper.rowKeyToBytes(record.composeRowKey())));
         }
-        this.delete(rowKeys);
+        this.hTable.delete(deletes);
     }
 
     /**
@@ -298,7 +300,7 @@ public abstract class AbstractHBDAO<T extends HBRecord> {
         WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         List<Cell> cells = result.getColumnCells(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
         for (Cell cell : cells) {
-            Type fieldType = hbColumn.isMultiVersioned() ? hbObjectMapper.getComponentType(field) : field.getType();
+            Type fieldType = hbObjectMapper.getFieldType(field, hbColumn.isMultiVersioned());
             final String rowKey = Bytes.toString(CellUtil.cloneRow(cell));
             if (!map.containsKey(rowKey))
                 map.put(rowKey, new TreeMap<Long, Object>());

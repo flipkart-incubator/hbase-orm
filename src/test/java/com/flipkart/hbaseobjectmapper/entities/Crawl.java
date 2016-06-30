@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 @HBTable("crawl")
 @ToString
-public class Crawl implements HBRecord {
+public class Crawl implements HBRecord<String> {
     @HBRowKey
     String key;
 

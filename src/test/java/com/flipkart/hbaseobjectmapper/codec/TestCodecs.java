@@ -34,7 +34,8 @@ public class TestCodecs {
         try {
             for (HBRecord object : TestObjects.validObjects) {
                 Class<? extends HBRecord> objectClass = object.getClass();
-                for (Map.Entry<String, Field> e : hbObjectMapper.getHBFields(objectClass).entrySet()) {
+                for (Object re : hbObjectMapper.getHBFields(objectClass).entrySet()) {
+                    Map.Entry<String, Field> e = (Map.Entry<String, Field>) re;
                     String fieldName = e.getKey();
                     Field field = e.getValue();
                     field.setAccessible(true);

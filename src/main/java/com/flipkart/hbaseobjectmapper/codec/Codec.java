@@ -12,8 +12,8 @@ public interface Codec {
      * Serialize object to a <code>byte[]</code>
      *
      * @param object Object to be serialized
-     * @return byte array - this would be used as is in setting column value
-     * @throws SerializationException If serialization fails (e.g. classes uses a type that isn't serializable by this codec)
+     * @return byte array - this would be used 'as is' in setting the column value in HBase row
+     * @throws SerializationException If serialization fails (e.g. when a class uses a type that isn't serializable by this codec)
      */
     byte[] serialize(Serializable object) throws SerializationException;
 

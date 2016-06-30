@@ -7,7 +7,7 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 
-public class CitizenSummaryDAO extends AbstractHBDAO<CitizenSummary> {
+public class CitizenSummaryDAO extends AbstractHBDAO<String, CitizenSummary> {
 
     public CitizenSummaryDAO(Configuration conf) throws IOException {
         super(conf);

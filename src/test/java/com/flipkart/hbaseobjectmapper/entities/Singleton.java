@@ -4,7 +4,7 @@ import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.HBRowKey;
 
-public class Singleton implements HBRecord {
+public class Singleton implements HBRecord<String> {
     private static Singleton ourInstance = new Singleton();
 
     @HBRowKey
