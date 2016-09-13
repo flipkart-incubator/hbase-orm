@@ -1,4 +1,4 @@
-package com.flipkart.hbaseobjectmapper.mr.lib;
+package com.flipkart.hbaseobjectmapper.util.mr;
 
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -15,10 +15,10 @@ public class TableMapDriver<KEYOUT, VALUEOUT> extends MapDriver<ImmutableBytesWr
     }
 
     public static <KEYOUT, VALUEOUT> TableMapDriver<KEYOUT, VALUEOUT> newTableMapDriver() {
-        return new TableMapDriver<KEYOUT, VALUEOUT>();
+        return new TableMapDriver<>();
     }
 
     public static <KEYOUT, VALUEOUT> TableMapDriver<KEYOUT, VALUEOUT> newTableMapDriver(final Mapper<ImmutableBytesWritable, Result, KEYOUT, VALUEOUT> m) {
-        return new TableMapDriver<KEYOUT, VALUEOUT>(m);
+        return new TableMapDriver<>(m);
     }
 }

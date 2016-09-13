@@ -8,7 +8,15 @@ import java.lang.reflect.Type;
 
 public class JacksonJsonCodec implements Codec {
 
-    protected final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public JacksonJsonCodec(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public JacksonJsonCodec() {
+        this(new ObjectMapper());
+    }
 
     /*
     * @inherit

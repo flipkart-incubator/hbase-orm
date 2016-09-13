@@ -1,12 +1,13 @@
 package com.flipkart.hbaseobjectmapper;
 
+import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Maps an entity field that is 'navigable map of timestamp and values' to an HBase column
+ * Maps an entity field of type <code>NavigableMap&lt;Long, T&gt;</code> to an HBase column (where <code>T</code> is a {@link Serializable} type)
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

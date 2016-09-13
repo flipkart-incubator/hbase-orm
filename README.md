@@ -3,17 +3,20 @@
 ## Introduction
 This compact utility library is an annotation based *object mapper* for HBase (written in Java) that helps you:
 
-* convert your bean-like objects to HBase rows and vice-versa (for use in MapReduce jobs on HBase tables and their unit-tests)
-* define *data access objects* for entities that map to HBase rows (for random single/range/bulk access of rows of an HBase table)
+* convert objects of your bean-like classes to HBase rows and vice-versa ➞ for use in MapReduce jobs on HBase tables and their unit-tests
+* define *data access objects* for entities that map to HBase rows ➞ for random single/range/bulk access of rows of an HBase table 
 
 ## Usage
 Let's say you've an HBase table `citizens` with row-key format `country_code#UID`. Let's say your table is created with two column families `main` and `optional` which may have columns like `uid`, `name`, `salary` etc.
 
-This library enables to you represent your HBase row as a class like below:
+This library enables to you represent your HBase table as a class, like below:
 
 ```java
 @HBTable("citizens")
-public class Citizen implements HBRecord {
+public class Citizen implements HBRecord<String> {
+	// Generic type argument above indicates the data type to which you want to map your HBase row key
+	// In this case, I'm mapping it as a String
+	
     @HBRowKey
     private String countryCode;
     @HBRowKey
@@ -42,7 +45,7 @@ public class Citizen implements HBRecord {
     }
 } 
 ```
-(see [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) for a detailed example with more data types)
+(see [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) for a detailed example with lot many data types)
 
 Now, for above definition of your `Citizen` class,
 
@@ -51,8 +54,8 @@ Now, for above definition of your `Citizen` class,
 
 ## MapReduce use-cases
 
-### Use in `map()`
-HBase's `Result` object can be converted to your bean-like object using below method: 
+### Mapper
+If your MapReduce job is reading from an HBase table, in your `map()` method, HBase's `Result` object can be converted to your object of your bean-like class using below method: 
 
 ```java
 <T extends HBRecord> T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
@@ -65,8 +68,8 @@ Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
 ```
 See file [CitizenMapper.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/samples/CitizenMapper.java) for full sample code.
 
-### Use in `reduce()`
-Your bean-like object can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
+### Reducer
+If your MapReduce job is writing to an HBase table, in your `reduce()` method, object of your bean-like class can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
 ImmutableBytesWritable getRowKey(HBRecord obj)
@@ -83,7 +86,9 @@ context.write(hbObjectMapper.getRowKey(citizen), hbObjectMapper.writeValueAsPut(
 
 See file [CitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/samples/CitizenReducer.java) for full sample code.
 
-### Unit-test for `map()`
+### Unit-test for Mapper
+If your MapReduce job is reading from an HBase table, you would want to unit-test your `map()` method as below.
+
 Your bean-like object can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
@@ -108,7 +113,9 @@ mapDriver
 
 See file [TestCitizenMapper.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenMapper.java) for full sample code.
 
-### Unit-test for `reduce()`
+### Unit-test for Reducer
+If your MapReduce job is writing to an HBase table, you would want to unit-test your `reduce()` method as below.
+
 HBase's `Put` object can be converted to your bean-like object using below method:
  
 ```java
@@ -124,9 +131,7 @@ Citizen citizen = hbObjectMapper.readValue(reducerResult.getFirst(), (Put) reduc
 
 See file [TestCitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenReducer.java) for full sample code that unit-tests a reducer using [MRUnit](https://mrunit.apache.org/)
 
-## HBase ORM
-Since we're dealing with HBase (and not an OLTP system), fitting an ORM paradigm may not make sense. So, this library doesn't intend to evolve as a full-fledged ORM.
-
+## HBase Random Access
 This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
 
 ```java
@@ -176,6 +181,8 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 ```
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for a more detailed example)
 
+**Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting an ORM paradigm may not make sense. But, if you do intend to use HBase via ORM, I suggest you use [Apache Phoenix](https://phoenix.apache.org/). This library, however, doesn't intend to evolve as a full-fledged ORM. 
+
 
 ## Maven
 Add below entry within the `dependencies` section of your `pom.xml`:
@@ -196,7 +203,7 @@ To build this project, follow below steps:
  * Checkout latest stable version `git checkout v1.3`
  * Execute `mvn clean install` from shell
 
-Currently, projects that use this library are running to [Hortonworks Data Platform v2.2](http://hortonworks.com/blog/announcing-hdp-2-2/) (corresponds to Hadoop 2.6 and HBase 0.98). However, if you're using a different version (or even different distribution like [Cloudera](http://www.cloudera.com/)), you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
+Currently, projects that use this library are running on [Hortonworks Data Platform v2.2](http://hortonworks.com/blog/announcing-hdp-2-2/) (corresponds to Hadoop 2.6 and HBase 0.98). However, if you're using a different distribution of Hadoop (like [Cloudera](http://www.cloudera.com/)) or if you are using a different version of Hadoop, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
 
 **Please note**: Test cases are very comprehensive - they even spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). So, build times can sometimes be longer.
 

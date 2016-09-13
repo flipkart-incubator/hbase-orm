@@ -8,16 +8,16 @@ import com.flipkart.hbaseobjectmapper.HBTable;
 import lombok.ToString;
 
 @ToString
-@HBTable("citizens_summary")
-public class CitizenSummary implements HBRecord<String> {
+@HBTable("employees_summary")
+public class EmployeeSummary implements HBRecord<String> {
 
     @HBRowKey
     private String key;
 
-    @HBColumn(family = "a", column = "average_age")
-    private Float averageAge;
+    @HBColumn(family = "a", column = "average_salary")
+    private Float averageReporteeCount;
 
-    public CitizenSummary() {
+    public EmployeeSummary() {
         key = "summary";
     }
 
@@ -31,11 +31,11 @@ public class CitizenSummary implements HBRecord<String> {
         key = rowKey;
     }
 
-    public Float getAverageAge() {
-        return averageAge;
+    public Float getAverageReporteeCount() {
+        return averageReporteeCount;
     }
 
-    public void setAverageAge(float averageAge) {
-        this.averageAge = averageAge;
+    public void setAverageReporteeCount(Float averageReporteeCount) {
+        this.averageReporteeCount = averageReporteeCount;
     }
 }
