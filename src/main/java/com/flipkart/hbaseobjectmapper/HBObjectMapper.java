@@ -175,7 +175,7 @@ public class HBObjectMapper {
      * @param serializeAsString If this is set to <code>true</code>, a value like <code>1.025</code>
      * @return Byte-array representing serialized object
      */
-    public byte[] valueToByteArray(Serializable value, boolean serializeAsString) {
+    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value, boolean serializeAsString) {
         try {
             if (value == null)
                 return null;
@@ -195,19 +195,19 @@ public class HBObjectMapper {
         }
     }
 
-    public byte[] valueToByteArray(Serializable value) {
+    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value) {
         return valueToByteArray(value, false);
     }
 
     /**
-     * <p>Converts a {@link Serializable} object into HBase's {@link ImmutableBytesWritable}.</p>
-     * <p>This method is for use in mappers and their unit-tests.</p>
+     * <p>Converts an object representing an HBase row key into HBase's {@link ImmutableBytesWritable}.</p>
+     * <p>This method is for use in Mappers, uni-tests for Mappers and unit-tests for Reducers.</p>
      *
-     * @param value Object to be serialized
+     * @param rowKey Row key object to be serialized
      * @return Byte array, wrapped in HBase's data type
      */
-    public ImmutableBytesWritable rowKeyToIbw(Serializable value) {
-        return new ImmutableBytesWritable(valueToByteArray(value));
+    public <R extends Serializable & Comparable<R>> ImmutableBytesWritable rowKeyToIbw(R rowKey) {
+        return new ImmutableBytesWritable(valueToByteArray(rowKey));
     }
 
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void validateHBClass(Class<T> clazz) {
@@ -358,10 +358,10 @@ public class HBObjectMapper {
     }
 
     private <R extends Serializable & Comparable<R>> byte[] getFieldValueAsBytes(HBRecord<R> obj, Field field, boolean serializeAsString) {
-        Serializable fieldValue;
+        R fieldValue;
         try {
             field.setAccessible(true);
-            fieldValue = (Serializable) field.get(obj);
+            fieldValue = (R) field.get(obj);
         } catch (IllegalAccessException e) {
             throw new BadHBaseLibStateException(e);
         }
@@ -372,16 +372,16 @@ public class HBObjectMapper {
         try {
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
-            NavigableMap<Long, Serializable> fieldValueVersions = (NavigableMap<Long, Serializable>) field.get(obj);
+            NavigableMap<Long, R> fieldValueVersions = (NavigableMap<Long, R>) field.get(obj);
             if (fieldValueVersions == null)
                 return null;
             if (fieldValueVersions.size() == 0) {
                 throw new FieldAnnotatedWithHBColumnMultiVersionCantBeEmpty();
             }
             NavigableMap<Long, byte[]> output = new TreeMap<>();
-            for (NavigableMap.Entry<Long, Serializable> e : fieldValueVersions.entrySet()) {
+            for (NavigableMap.Entry<Long, R> e : fieldValueVersions.entrySet()) {
                 Long timestamp = e.getKey();
-                Serializable fieldValue = e.getValue();
+                R fieldValue = (R) e.getValue();
                 if (fieldValue == null)
                     continue;
                 byte[] fieldValueBytes = valueToByteArray(fieldValue, serializeAsString);

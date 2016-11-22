@@ -61,7 +61,7 @@ public class TestHBObjectMapper {
         System.out.printf("Time taken for Result->POJO = %dms%n%n", end - start);
     }
 
-    public void testResultWithRow(HBRecord p) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) throws DeserializationException {
         long start, end;
         Result result = (Result) hbMapper.writeValueAsResult(l(p, p)).get(0);
         ImmutableBytesWritable rowKey = hbMapper.rowKeyToIbw(p.composeRowKey());
@@ -93,7 +93,7 @@ public class TestHBObjectMapper {
         System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
     }
 
-    public void testPutWithRow(HBRecord p) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>> void testPutWithRow(HBRecord<R> p) throws DeserializationException {
         long start, end;
         Put put = hbMapper.writeValueAsPut(p);
         ImmutableBytesWritable rowKey = hbMapper.rowKeyToIbw(p.composeRowKey());
