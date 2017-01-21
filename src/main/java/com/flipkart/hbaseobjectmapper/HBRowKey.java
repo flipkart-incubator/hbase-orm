@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the annotated field (in part or full) forms row key. This is to be treated as a 'marker' annotation. Actual row key composition solely depends on your implementation of {@link HBRecord#composeRowKey()}
+ * Indicates that the annotated field (in part or full) forms row key. This is to be treated as a 'marker' annotation. Actual row key composition solely depends on your implementation of {@link HBRecord#composeRowKey()} method
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

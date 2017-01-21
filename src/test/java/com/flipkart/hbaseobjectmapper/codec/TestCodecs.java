@@ -1,15 +1,13 @@
 package com.flipkart.hbaseobjectmapper.codec;
 
 
-import com.flipkart.hbaseobjectmapper.HBColumnMultiVersion;
-import com.flipkart.hbaseobjectmapper.HBObjectMapper;
-import com.flipkart.hbaseobjectmapper.HBRecord;
-import com.flipkart.hbaseobjectmapper.TestObjects;
+import com.flipkart.hbaseobjectmapper.*;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 
@@ -24,8 +22,8 @@ public class TestCodecs {
     }
 
     @Test
-    public void testJacksonJsonCodec() {
-        testWithCodec(new JacksonJsonCodec());
+    public void testBestSuitCodec() {
+        testWithCodec(new BestSuitCodec());
     }
 
     @SuppressWarnings("unchecked")
@@ -44,11 +42,11 @@ public class TestCodecs {
                         if (fieldValuesMap == null)
                             continue;
                         for (NavigableMap.Entry<Long, ?> entry : ((NavigableMap<Long, ?>) fieldValuesMap).entrySet()) {
-                            verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, entry.getValue().getClass(), (Serializable) entry.getValue());
+                            verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, entry.getValue().getClass(), (Serializable) entry.getValue(), toMap(field.getAnnotation(HBColumnMultiVersion.class).codecFlags()));
                         }
                     } else {
                         Serializable fieldValue = (Serializable) field.get(object);
-                        verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getType(), fieldValue);
+                        verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getType(), fieldValue, toMap(field.getAnnotation(HBColumn.class).codecFlags()));
                     }
                 }
             }
@@ -65,9 +63,18 @@ public class TestCodecs {
 
     }
 
-    private void verifySerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue) throws SerializationException, DeserializationException {
-        byte[] bytes = codec.serialize(fieldValue);
-        Serializable deserializedFieldValue = codec.deserialize(bytes, type);
+    private Map<String, String> toMap(Flag[] codecFlags) {
+        Map<String, String> flagsMap = new HashMap<>();
+        for (Flag flag : codecFlags) {
+            flagsMap.put(flag.name(), flag.value());
+        }
+        return flagsMap;
+    }
+
+
+    private void verifySerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue, Map<String, String> flags) throws SerializationException, DeserializationException {
+        byte[] bytes = codec.serialize(fieldValue, flags);
+        Serializable deserializedFieldValue = codec.deserialize(bytes, type, flags);
         assertEquals(String.format("Field %s got corrupted after serialization and deserialization of it's value:\n%s\n", fieldFullName, fieldValue), fieldValue, deserializedFieldValue);
     }
 }

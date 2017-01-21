@@ -19,11 +19,11 @@ import java.util.*;
 /**
  * A <i>Data Access Object</i> class that enables simple random access (read/write) of HBase rows.
  * <p>
- * Please note: This class is not thread-safe
+ * Please note: Unliked the {@link HBObjectMapper} class, this class is <b>not</b> thread-safe
  * </p>
  *
- * @param <R> Data type of row key (must be {@link Comparable} with itself and must be {@link Serializable})
- * @param <T> Entity type that maps to an HBase row (must implement {@link HBRecord} interface)
+ * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
+ * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
  */
 public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> {
 
@@ -316,7 +316,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             final String rowKey = Bytes.toString(CellUtil.cloneRow(cell));
             if (!map.containsKey(rowKey))
                 map.put(rowKey, new TreeMap<Long, Object>());
-            map.get(rowKey).put(cell.getTimestamp(), hbObjectMapper.byteArrayToValue(CellUtil.cloneValue(cell), fieldType, hbColumn.serializeAsString()));
+            map.get(rowKey).put(cell.getTimestamp(), hbObjectMapper.byteArrayToValue(CellUtil.cloneValue(cell), fieldType, hbColumn.codecFlags()));
         }
     }
 

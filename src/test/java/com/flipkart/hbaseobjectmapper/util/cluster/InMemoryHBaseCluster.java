@@ -10,7 +10,7 @@ import java.util.concurrent.*;
 public class InMemoryHBaseCluster implements HBaseCluster {
 
     private final static long CLUSTER_START_TIMEOUT = 60;
-    private HBaseTestingUtility utility;
+    private final HBaseTestingUtility utility;
     private final ExecutorService executorService;
 
 

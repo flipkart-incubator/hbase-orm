@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Maps an entity to a table in HBase
+ * Maps an entity class to a table in HBase
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

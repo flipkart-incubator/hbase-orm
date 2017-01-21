@@ -3,9 +3,9 @@ package com.flipkart.hbaseobjectmapper;
 import java.io.Serializable;
 
 /**
- * Entities that need to be mapped to HBase tables need to implement this interface
+ * Entities that need to be mapped to HBase tables need to implement this generic interface
  *
- * @param <R> A type that's {@link Comparable} to itself and is {@link Serializable} (e.g. <code>String</code>, <code>Integer</code> etc)
+ * @param <R> Data type for row key. This type must be '{@link Comparable} to itself' and {@link Serializable} (e.g. {@link String}, {@link Integer} etc.).
  */
 public interface HBRecord<R extends Serializable & Comparable<R>> extends Serializable {
 

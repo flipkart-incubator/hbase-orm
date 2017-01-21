@@ -127,7 +127,7 @@ public class TestHBObjectMapper {
         for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
             HBRecord record = p.getValue0();
             Class recordClass = record.getClass();
-            assertFalse("Object mapper couldn't detect invalidity of class " + recordClass.getName(), hbMapper.isValid(recordClass));
+            assertFalse("Object mapper couldn't detect issue with invalid class " + recordClass.getName(), hbMapper.isValid(recordClass));
             String errorMessage = p.getValue1() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
             String exMsgObjToResult = null, exMsgObjToPut = null, exMsgResultToObj = null, exMsgPutToObj = null;
             try {

@@ -1,13 +1,11 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.flipkart.hbaseobjectmapper.codec.BestSuitCodec;
 import com.flipkart.hbaseobjectmapper.codec.Codec;
 import com.flipkart.hbaseobjectmapper.codec.DeserializationException;
-import com.flipkart.hbaseobjectmapper.codec.JacksonJsonCodec;
 import com.flipkart.hbaseobjectmapper.codec.SerializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.*;
 import com.flipkart.hbaseobjectmapper.exceptions.InternalError;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
@@ -20,82 +18,21 @@ import org.apache.hadoop.hbase.util.Pair;
 
 import java.io.Serializable;
 import java.lang.reflect.*;
-import java.math.BigDecimal;
 import java.util.*;
 
 /**
- * <p>An object mapper class that helps convert your objects of your bean-like class to HBase's {@link Put} and {@link Result} objects (and vice-versa).</p>
- * <p>This class is for use in MapReduce jobs which read from and/or write to HBase tables and their unit-tests.</p>
+ * <p>An <b>object mapper class</b> that helps convert objects of your bean-like class to HBase's {@link Put} and {@link Result} objects (and vice-versa).</p>
+ * <p>This class is for use in MapReduce jobs which <i>read from</i> and/or <i>write to</i> HBase tables and their unit-tests.</p>
  * <p>This class is thread-safe.</p>
  */
 public class HBObjectMapper {
 
-    private static final Codec DEFAULT_CODEC = new JacksonJsonCodec();
-
-    private static final Map<Class, String> fromBytesMethodNames = new HashMap<Class, String>() {
-        {
-            put(Boolean.class, "toBoolean");
-            put(Short.class, "toShort");
-            put(Integer.class, "toInt");
-            put(Long.class, "toLong");
-            put(Float.class, "toFloat");
-            put(Double.class, "toDouble");
-            put(String.class, "toString");
-            put(BigDecimal.class, "toBigDecimal");
-        }
-    };
-
-    private static final BiMap<Class, Class> nativeCounterParts = HashBiMap.create(new HashMap<Class, Class>() {
-        {
-            put(Boolean.class, boolean.class);
-            put(Short.class, short.class);
-            put(Long.class, long.class);
-            put(Integer.class, int.class);
-            put(Float.class, float.class);
-            put(Double.class, double.class);
-        }
-    });
-
-    private static final Map<Class, Method> fromBytesMethods, toBytesMethods;
-    private static final Map<Class, Constructor> constructors;
-
-    static {
-        try {
-            fromBytesMethods = new HashMap<>(fromBytesMethodNames.size());
-            toBytesMethods = new HashMap<>(fromBytesMethodNames.size());
-            constructors = new HashMap<>(fromBytesMethodNames.size());
-            Method fromBytesMethod, toBytesMethod;
-            Constructor<?> constructor;
-            for (Map.Entry<Class, String> e : fromBytesMethodNames.entrySet()) {
-                Class<?> clazz = e.getKey();
-                String toDataTypeMethodName = e.getValue();
-                fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
-                toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
-                constructor = clazz.getConstructor(String.class);
-                fromBytesMethods.put(clazz, fromBytesMethod);
-                toBytesMethods.put(clazz, toBytesMethod);
-                constructors.put(clazz, constructor);
-            }
-        } catch (Exception ex) {
-            throw new BadHBaseLibStateException(ex);
-        }
-    }
+    private static final Codec DEFAULT_CODEC = new BestSuitCodec();
 
     private final Codec codec;
 
     /**
      * Instantiate object of this class with a custom {@link Codec}
-     * <p>
-     * <b>Note</b>: For following java types, HBase's native serializers/deserializers are used, irrespective of what codec you specify: <ul>
-     * <li>{@link Boolean}</li>
-     * <li>{@link Short}</li>
-     * <li>{@link Integer}</li>
-     * <li>{@link Long}</li>
-     * <li>{@link Float}</li>
-     * <li>{@link Double}</li>
-     * <li>{@link String}</li>
-     * <li>{@link BigDecimal}</li>
-     * </ul>
      *
      * @param codec Codec to be used for serialization and deserialization of fields
      */
@@ -104,20 +41,27 @@ public class HBObjectMapper {
     }
 
     /**
-     * Instantiate an object of this class with default {@link Codec} of {@link JacksonJsonCodec}
+     * Instantiate an object of this class with default {@link Codec} of {@link BestSuitCodec}
      */
     public HBObjectMapper() {
         this(DEFAULT_CODEC);
     }
 
+    /**
+     * Serialize row key
+     *
+     * @param rowKey Object representing row key
+     * @param <R>    Data type of row key
+     * @return Byte array
+     */
     <R extends Serializable & Comparable<R>> byte[] rowKeyToBytes(R rowKey) {
-        return valueToByteArray(rowKey, false);
+        return valueToByteArray(rowKey, null);
     }
 
     @SuppressWarnings("unchecked")
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> R bytesToRowKey(byte[] rowKeyBytes, Class<T> entityClass) throws DeserializationException {
         try {
-            return (R) byteArrayToValue(rowKeyBytes, entityClass.getDeclaredMethod("composeRowKey").getReturnType(), false);
+            return (R) byteArrayToValue(rowKeyBytes, entityClass.getDeclaredMethod("composeRowKey").getReturnType(), null);
         } catch (NoSuchMethodException e) {
             throw new InternalError(e);
         }
@@ -147,13 +91,13 @@ public class HBObjectMapper {
                 if (columnVersionsMap == null || columnVersionsMap.isEmpty())
                     continue;
                 Map.Entry<Long, byte[]> lastEntry = columnVersionsMap.lastEntry();
-                objectSetFieldValue(obj, field, lastEntry.getValue(), hbColumn.serializeAsString());
+                objectSetFieldValue(obj, field, lastEntry.getValue(), hbColumn.codecFlags());
             } else if (hbColumn.isMultiVersioned()) {
                 NavigableMap<byte[], NavigableMap<Long, byte[]>> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
                 if (familyMap == null || familyMap.isEmpty())
                     continue;
                 NavigableMap<Long, byte[]> columnVersionsMap = familyMap.get(Bytes.toBytes(hbColumn.column()));
-                objectSetFieldValue(obj, field, columnVersionsMap, hbColumn.serializeAsString());
+                objectSetFieldValue(obj, field, columnVersionsMap, hbColumn.codecFlags());
             }
         }
         return obj;
@@ -171,32 +115,25 @@ public class HBObjectMapper {
     /**
      * Converts a {@link Serializable} object into a <code>byte[]</code>
      *
-     * @param value             Object to be serialized
-     * @param serializeAsString If this is set to <code>true</code>, a value like <code>1.025</code>
+     * @param value      Object to be serialized
+     * @param codecFlags Flags to be passed to Codec
      * @return Byte-array representing serialized object
      */
-    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value, boolean serializeAsString) {
+    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value, Map<String, String> codecFlags) {
         try {
-            if (value == null)
-                return null;
-            Class<? extends Serializable> clazz = value.getClass();
-            if (toBytesMethods.containsKey(clazz)) {
-                Method toBytesMethod = toBytesMethods.get(clazz);
-                return serializeAsString ? Bytes.toBytes(String.valueOf(value)) : (byte[]) toBytesMethod.invoke(null, value);
-            } else {
-                try {
-                    return codec.serialize(value);
-                } catch (SerializationException jpx) {
-                    throw new ConversionFailedException(String.format("Don't know how to convert field of type %s to byte array", clazz.getName()));
-                }
+            try {
+                return codec.serialize(value, codecFlags);
+            } catch (SerializationException jpx) {
+                throw new ConversionFailedException("Don't know how to convert field to byte array");
             }
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+
+        } catch (IllegalArgumentException e) {
             throw new BadHBaseLibStateException(e);
         }
     }
 
     public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value) {
-        return valueToByteArray(value, false);
+        return valueToByteArray(value, null);
     }
 
     /**
@@ -272,7 +209,7 @@ public class HBObjectMapper {
     }
 
     /**
-     * Internal note: This should be in sync with {@link #validateHBColumnMultiVersionField(Field)}
+     * Internal note: For multi-version usecase, this should be in sync with {@link #validateHBColumnMultiVersionField(Field)}
      */
     Type getFieldType(Field field, boolean isMultiVersioned) {
         if (isMultiVersioned) {
@@ -288,8 +225,7 @@ public class HBObjectMapper {
         if (fieldType instanceof Class) {
             Class fieldClazz = (Class) fieldType;
             if (fieldClazz.isPrimitive()) {
-                String suggestion = nativeCounterParts.containsValue(fieldClazz) ? String.format("- Use type %s instead", nativeCounterParts.inverse().get(fieldClazz).getName()) : "";
-                throw new MappedColumnCantBePrimitiveException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable) %s", field.getName(), field.getDeclaringClass().getName(), fieldClazz.getName(), suggestion));
+                throw new MappedColumnCantBePrimitiveException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable)", field.getName(), field.getDeclaringClass().getName(), fieldClazz.getName()));
             }
         }
         if (!codec.canDeserialize(fieldType)) {
@@ -328,7 +264,7 @@ public class HBObjectMapper {
                     map.put(family, new TreeMap<byte[], NavigableMap<Long, byte[]>>(Bytes.BYTES_COMPARATOR));
                 }
                 Map<byte[], NavigableMap<Long, byte[]>> columns = map.get(family);
-                final byte[] fieldValueBytes = getFieldValueAsBytes(obj, field, hbColumn.serializeAsString());
+                final byte[] fieldValueBytes = getFieldValueAsBytes(obj, field, hbColumn.codecFlags());
                 if (fieldValueBytes == null || fieldValueBytes.length == 0) {
                     continue;
                 }
@@ -339,7 +275,7 @@ public class HBObjectMapper {
                     }
                 });
             } else if (hbColumn.isMultiVersioned()) {
-                NavigableMap<Long, byte[]> fieldValueVersions = getFieldValuesVersioned(field, obj, hbColumn.serializeAsString());
+                NavigableMap<Long, byte[]> fieldValueVersions = getFieldValuesVersioned(field, obj, hbColumn.codecFlags());
                 if (fieldValueVersions == null)
                     continue;
                 byte[] family = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
@@ -357,7 +293,7 @@ public class HBObjectMapper {
         return map;
     }
 
-    private <R extends Serializable & Comparable<R>> byte[] getFieldValueAsBytes(HBRecord<R> obj, Field field, boolean serializeAsString) {
+    private <R extends Serializable & Comparable<R>> byte[] getFieldValueAsBytes(HBRecord<R> obj, Field field, Map<String, String> codecFlags) {
         R fieldValue;
         try {
             field.setAccessible(true);
@@ -365,10 +301,10 @@ public class HBObjectMapper {
         } catch (IllegalAccessException e) {
             throw new BadHBaseLibStateException(e);
         }
-        return valueToByteArray(fieldValue, serializeAsString);
+        return valueToByteArray(fieldValue, codecFlags);
     }
 
-    private <R extends Serializable & Comparable<R>> NavigableMap<Long, byte[]> getFieldValuesVersioned(Field field, HBRecord<R> obj, boolean serializeAsString) {
+    private <R extends Serializable & Comparable<R>> NavigableMap<Long, byte[]> getFieldValuesVersioned(Field field, HBRecord<R> obj, Map<String, String> codecFlags) {
         try {
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
@@ -384,7 +320,7 @@ public class HBObjectMapper {
                 R fieldValue = (R) e.getValue();
                 if (fieldValue == null)
                     continue;
-                byte[] fieldValueBytes = valueToByteArray(fieldValue, serializeAsString);
+                byte[] fieldValueBytes = valueToByteArray(fieldValue, codecFlags);
                 output.put(timestamp, fieldValueBytes);
             }
             return output;
@@ -530,14 +466,14 @@ public class HBObjectMapper {
         return mapToObj(rowKey, result.getMap(), clazz);
     }
 
-    private void objectSetFieldValue(Object obj, Field field, NavigableMap<Long, byte[]> columnValuesVersioned, boolean serializeAsString) {
+    private void objectSetFieldValue(Object obj, Field field, NavigableMap<Long, byte[]> columnValuesVersioned, Map<String, String> codecFlags) {
         if (columnValuesVersioned == null)
             return;
         try {
             field.setAccessible(true);
             NavigableMap<Long, Object> columnValuesVersionedBoxed = new TreeMap<>();
             for (NavigableMap.Entry<Long, byte[]> versionAndValue : columnValuesVersioned.entrySet()) {
-                columnValuesVersionedBoxed.put(versionAndValue.getKey(), byteArrayToValue(versionAndValue.getValue(), ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1], serializeAsString));
+                columnValuesVersionedBoxed.put(versionAndValue.getKey(), byteArrayToValue(versionAndValue.getValue(), ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1], codecFlags));
             }
             field.set(obj, columnValuesVersionedBoxed);
         } catch (Exception ex) {
@@ -545,12 +481,12 @@ public class HBObjectMapper {
         }
     }
 
-    private void objectSetFieldValue(Object obj, Field field, byte[] value, boolean serializeAsString) {
+    private void objectSetFieldValue(Object obj, Field field, byte[] value, Map<String, String> codecFlags) {
         if (value == null || value.length == 0)
             return;
         try {
             field.setAccessible(true);
-            field.set(obj, byteArrayToValue(value, field.getType(), serializeAsString));
+            field.set(obj, byteArrayToValue(value, field.getType(), codecFlags));
         } catch (Exception ex) {
             throw new ConversionFailedException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
         }
@@ -560,30 +496,11 @@ public class HBObjectMapper {
     /**
      * Convert a byte array representing HBase column data to appropriate data type (boxed as object)
      */
-    Object byteArrayToValue(byte[] value, Type type, boolean serializeAsString) throws DeserializationException {
+    Object byteArrayToValue(byte[] value, Type type, Map<String, String> codecFlags) throws DeserializationException {
         if (value == null || value.length == 0)
             return null;
-        Object fieldValue;
-        try {
-            if (type instanceof Class && fromBytesMethods.containsKey(type)) {
-                if (serializeAsString) {
-                    Constructor constructor = constructors.get(type);
-                    try {
-                        fieldValue = constructor.newInstance(Bytes.toString(value));
-                    } catch (Exception ex) {
-                        fieldValue = null;
-                    }
-                } else {
-                    Method method = fromBytesMethods.get(type);
-                    fieldValue = method.invoke(null, new Object[]{value});
-                }
-            } else {
-                return codec.deserialize(value, type);
-            }
-            return fieldValue;
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new BadHBaseLibStateException(e);
-        }
+        else
+            return codec.deserialize(value, type, codecFlags);
     }
 
     /**
@@ -694,7 +611,7 @@ public class HBObjectMapper {
         if (rowKey == null || rowKey.toString().isEmpty()) {
             throw new RowKeyCantBeEmptyException();
         }
-        return valueToByteArray(rowKey, false);
+        return valueToByteArray(rowKey, null);
     }
 
     /**
