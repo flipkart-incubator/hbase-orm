@@ -264,11 +264,11 @@ Currently, projects that use this library are running on [Hortonworks Data Platf
 
 ## Releases
 
-The change log can be found in the [releases](../../releases) section.
+The change log can be found in the [releases](//github.com/flipkart-incubator/hbase-object-mapper/releases) section.
 
 ## Feature requests and bug reporting
 
-If you intend to request a feature or report a bug, you may use [Github Issues for hbase-object-mapper](../../issues).
+If you intend to request a feature or report a bug, you may use [Github Issues for hbase-object-mapper](//github.com/flipkart-incubator/hbase-object-mapper/issues).
 
 ## License
 
