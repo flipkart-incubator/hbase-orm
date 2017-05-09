@@ -1,5 +1,7 @@
 package com.flipkart.hbaseobjectmapper;
 
+import com.flipkart.hbaseobjectmapper.codec.Codec;
+
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,18 +23,24 @@ public @interface HBColumnMultiVersion {
 
     /**
      * Name of HBase column family
+     *
+     * @return Name of HBase column family
      */
     String family();
 
     /**
      * Name of HBase column
+     *
+     * @return Name of HBase column
      */
     String column();
 
     /**
-     * <b>[optional]</b> flags to be passed to codec's {@link com.flipkart.hbaseobjectmapper.codec.Codec#serialize(Serializable, Map) serialize} and {@link com.flipkart.hbaseobjectmapper.codec.Codec#deserialize(byte[], Type, Map) deserialize} methods
+     * <b>[optional]</b> flags to be passed to codec's {@link Codec#serialize(Serializable, Map) serialize} and {@link Codec#deserialize(byte[], Type, Map) deserialize} methods
      * <p>
      * Note: These flags will be passed as a <code>Map&lt;String, String&gt;</code> (param name and param value)
+     *
+     * @return Flags
      */
     Flag[] codecFlags() default {};
 

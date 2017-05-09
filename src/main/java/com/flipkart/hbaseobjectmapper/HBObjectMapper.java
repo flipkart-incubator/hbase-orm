@@ -117,6 +117,7 @@ public class HBObjectMapper {
      *
      * @param value      Object to be serialized
      * @param codecFlags Flags to be passed to Codec
+     * @param <R>        Data type of row key
      * @return Byte-array representing serialized object
      */
     public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value, Map<String, String> codecFlags) {
@@ -141,6 +142,7 @@ public class HBObjectMapper {
      * <p>This method is for use in Mappers, uni-tests for Mappers and unit-tests for Reducers.</p>
      *
      * @param rowKey Row key object to be serialized
+     * @param <R>    Data type of row key
      * @return Byte array, wrapped in HBase's data type
      */
     public <R extends Serializable & Comparable<R>> ImmutableBytesWritable rowKeyToIbw(R rowKey) {
