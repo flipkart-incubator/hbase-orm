@@ -5,6 +5,8 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 
@@ -42,11 +44,15 @@ public class Citizen implements HBRecord<String> {
     private Map<String, Integer> extraFlags;
     @HBColumn(family = "optional", column = "dependents")
     private Dependents dependents; // Your own class
+    @HBColumn(family = "optional", column = "emergency_contacts_1")
+    private List<Contact> emergencyContacts1;
+    @HBColumn(family = "optional", column = "emergency_contacts_2")
+    private Map<String, Contact> emergencyContacts2;
 
     public Citizen() {
     }
 
-    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, NavigableMap<Long, Integer> phoneNumberHistory, Map<String, Integer> extraFlags, Dependents dependents) {
+    public Citizen(String countryCode, Integer uid, String name, Short age, Integer sal, Boolean isPassportHolder, Float f1, Double f2, Long f3, BigDecimal f4, Integer pincode, NavigableMap<Long, Integer> phoneNumberHistory, Map<String, Integer> extraFlags, Dependents dependents, Map<String, Contact> emergencyContacts) {
         this.countryCode = countryCode;
         this.uid = uid;
         this.name = name;
@@ -62,6 +68,13 @@ public class Citizen implements HBRecord<String> {
         this.f3 = f3;
         this.f4 = f4;
         this.pincode = pincode;
+        emergencyContacts2 = emergencyContacts;
+        if (emergencyContacts != null && !emergencyContacts.isEmpty()) {
+            emergencyContacts1 = new ArrayList<>();
+            for (Map.Entry<String, Contact> entry : emergencyContacts.entrySet()) {
+                emergencyContacts1.add(entry.getValue());
+            }
+        }
     }
 
     @Override
@@ -132,5 +145,17 @@ public class Citizen implements HBRecord<String> {
 
     public NavigableMap<Long, Integer> getPhoneNumberHistory() {
         return phoneNumberHistory;
+    }
+
+    public Boolean getPassportHolder() {
+        return isPassportHolder;
+    }
+
+    public List<Contact> getEmergencyContacts1() {
+        return emergencyContacts1;
+    }
+
+    public Map<String, Contact> getEmergencyContacts2() {
+        return emergencyContacts2;
     }
 }

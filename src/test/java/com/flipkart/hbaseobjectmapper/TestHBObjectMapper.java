@@ -63,7 +63,7 @@ public class TestHBObjectMapper {
 
     public <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) throws DeserializationException {
         long start, end;
-        Result result = (Result) hbMapper.writeValueAsResult(l(p, p)).get(0);
+        Result result = hbMapper.writeValueAsResult(l(p, p)).get(0);
         ImmutableBytesWritable rowKey = hbMapper.rowKeyToIbw(p.composeRowKey());
         start = System.currentTimeMillis();
         HBRecord pFromResult = hbMapper.readValue(rowKey, result, p.getClass());

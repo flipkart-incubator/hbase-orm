@@ -11,7 +11,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.5</version>
+    <version>1.5.1</version>
     <url>https://flipkart-incubator.github.io/hbase-object-mapper/</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-object-mapper</url>

@@ -124,7 +124,7 @@ public class HBObjectMapper {
             try {
                 return codec.serialize(value, codecFlags);
             } catch (SerializationException jpx) {
-                throw new ConversionFailedException("Don't know how to convert field to byte array");
+                throw new ConversionFailedException("Don't know how to convert field to byte array", jpx);
             }
 
         } catch (IllegalArgumentException e) {
@@ -486,7 +486,7 @@ public class HBObjectMapper {
             return;
         try {
             field.setAccessible(true);
-            field.set(obj, byteArrayToValue(value, field.getType(), codecFlags));
+            field.set(obj, byteArrayToValue(value, field.getGenericType(), codecFlags));
         } catch (Exception ex) {
             throw new ConversionFailedException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
         }

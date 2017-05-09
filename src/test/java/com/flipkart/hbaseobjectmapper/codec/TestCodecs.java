@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,15 +39,16 @@ public class TestCodecs {
                     Field field = e.getValue();
                     field.setAccessible(true);
                     if (field.isAnnotationPresent(HBColumnMultiVersion.class)) {
+                        final Type actualFieldType = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1];
                         Object fieldValuesMap = field.get(object);
                         if (fieldValuesMap == null)
                             continue;
                         for (NavigableMap.Entry<Long, ?> entry : ((NavigableMap<Long, ?>) fieldValuesMap).entrySet()) {
-                            verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, entry.getValue().getClass(), (Serializable) entry.getValue(), toMap(field.getAnnotation(HBColumnMultiVersion.class).codecFlags()));
+                            verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, actualFieldType, (Serializable) entry.getValue(), toMap(field.getAnnotation(HBColumnMultiVersion.class).codecFlags()));
                         }
                     } else {
                         Serializable fieldValue = (Serializable) field.get(object);
-                        verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getType(), fieldValue, toMap(field.getAnnotation(HBColumn.class).codecFlags()));
+                        verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getGenericType(), fieldValue, toMap(field.getAnnotation(HBColumn.class).codecFlags()));
                     }
                 }
             }

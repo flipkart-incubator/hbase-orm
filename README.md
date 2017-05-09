@@ -246,7 +246,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.5</version>
+	<version>1.5.1</version>
 </dependency>
 ```
 See artifact details for [com.flipkart:hbase-object-mapper](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.flipkart%22%20AND%20a%3A%22hbase-object-mapper%22) on **Maven Central**
@@ -255,7 +255,7 @@ See artifact details for [com.flipkart:hbase-object-mapper](http://search.maven.
 To build this project, follow below steps:
 
  * Do a `git clone` of this repository
- * Checkout latest stable version `git checkout v1.5`
+ * Checkout latest stable version `git checkout v1.5.1`
  * Execute `mvn clean install` from shell
 
 Currently, projects that use this library are running on [Hortonworks Data Platform v2.2](http://hortonworks.com/blog/announcing-hdp-2-2/) (corresponds to Hadoop 2.6 and HBase 0.98). However, if you're using a different distribution of Hadoop (like [Cloudera](http://www.cloudera.com/)) or if you are using a different version of Hadoop, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
