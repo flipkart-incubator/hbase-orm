@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A wrapper class for {@link HBColumn} and {@link HBColumnMultiVersion} annotations (internal use only)
+ * A wrapper class for {@link HBColumn} and {@link HBColumnMultiVersion} annotations (for internal use only)
  */
 class WrappedHBColumn {
     private String family, column;
@@ -71,5 +71,10 @@ class WrappedHBColumn {
 
     public String getName() {
         return annotationClass.getName();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s:%s", family, column);
     }
 }

@@ -1,7 +1,9 @@
 package com.flipkart.hbaseobjectmapper.exceptions;
 
+import com.flipkart.hbaseobjectmapper.HBObjectMapper;
+
 /**
- * Exception raised due to an unhandled scenario in {@link com.flipkart.hbaseobjectmapper.HBObjectMapper HBObjectMapper}
+ * Exception raised due to an unhandled scenario in {@link HBObjectMapper HBObjectMapper}
  */
 public class ConversionFailedException extends RuntimeException {
     public ConversionFailedException(String s, Throwable throwable) {

@@ -6,23 +6,22 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Maps an entity class to a table in HBase
+ * Represents a column family in HBase
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface HBTable {
+public @interface Family {
     /**
-     * Name of the HBase table
+     * Column family name
      *
-     * @return Name of the HBase table
+     * @return Column family name
      */
     String name();
 
-
     /**
-     * Column families and their specs
+     * Maximum number of versions configured for a given column family of the HBase table
      *
-     * @return Column families and their specs
+     * @return Max mumber of versions
      */
-    Family[] families() default {};
+    int versions() default 1;
 }

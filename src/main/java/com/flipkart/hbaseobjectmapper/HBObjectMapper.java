@@ -55,11 +55,11 @@ public class HBObjectMapper {
      * @return Byte array
      */
     <R extends Serializable & Comparable<R>> byte[] rowKeyToBytes(R rowKey) {
-        return valueToByteArray(rowKey, null);
+        return valueToByteArray(rowKey);
     }
 
     @SuppressWarnings("unchecked")
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> R bytesToRowKey(byte[] rowKeyBytes, Class<T> entityClass) throws DeserializationException {
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> R bytesToRowKey(byte[] rowKeyBytes, Class<T> entityClass) {
         try {
             return (R) byteArrayToValue(rowKeyBytes, entityClass.getDeclaredMethod("composeRowKey").getReturnType(), null);
         } catch (NoSuchMethodException e) {
@@ -67,7 +67,7 @@ public class HBObjectMapper {
         }
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T mapToObj(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map, Class<T> clazz) throws DeserializationException {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T mapToObj(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map, Class<T> clazz) {
         R rowKey = bytesToRowKey(rowKeyBytes, clazz);
         T obj;
         validateHBClass(clazz);
@@ -117,23 +117,17 @@ public class HBObjectMapper {
      *
      * @param value      Object to be serialized
      * @param codecFlags Flags to be passed to Codec
-     * @param <R>        Data type of row key
      * @return Byte-array representing serialized object
      */
-    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value, Map<String, String> codecFlags) {
+    private byte[] valueToByteArray(Serializable value, Map<String, String> codecFlags) {
         try {
-            try {
-                return codec.serialize(value, codecFlags);
-            } catch (SerializationException jpx) {
-                throw new ConversionFailedException("Don't know how to convert field to byte array", jpx);
-            }
-
-        } catch (IllegalArgumentException e) {
-            throw new BadHBaseLibStateException(e);
+            return codec.serialize(value, codecFlags);
+        } catch (SerializationException e) {
+            throw new CodecException("Couldn't serialize", e);
         }
     }
 
-    public <R extends Serializable & Comparable<R>> byte[] valueToByteArray(R value) {
+    private byte[] valueToByteArray(Serializable value) {
         return valueToByteArray(value, null);
     }
 
@@ -149,29 +143,33 @@ public class HBObjectMapper {
         return new ImmutableBytesWritable(valueToByteArray(rowKey));
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void validateHBClass(Class<T> clazz) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> WrappedHBTable<R, T> validateHBClass(Class<T> clazz) {
         Constructor constructor;
+        WrappedHBTable<R, T> hbTable;
         try {
-            Set<Pair<String, String>> columns = new HashSet<>();
             constructor = clazz.getDeclaredConstructor();
             int numOfHBColumns = 0, numOfHBRowKeys = 0;
+            hbTable = new WrappedHBTable<>(clazz);
+            Set<Pair<String, String>> columns = new HashSet<>(clazz.getDeclaredFields().length, 1.0f);
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(HBRowKey.class)) {
                     numOfHBRowKeys++;
                 }
                 WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-                if (hbColumn.isSingleVersioned()) {
-                    validateHBColumnSingleVersionField(field);
-                    numOfHBColumns++;
-                    if (!columns.add(new Pair<>(hbColumn.family(), hbColumn.column()))) {
-                        throw new FieldsMappedToSameColumnException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
+                if (hbColumn.isPresent()) {
+                    if (!hbTable.isColumnFamilyPresent(hbColumn.family())) {
+                        throw new IllegalArgumentException(String.format("Class %s has field '%s' mapped to HBase column %s - but column family %s isn't configured in %s annotation",
+                                clazz.getName(), field.getName(), hbColumn, hbColumn.family(), HBTable.class.getSimpleName()));
                     }
-                } else if (hbColumn.isMultiVersioned()) {
-                    validateHBColumnMultiVersionField(field);
-                    numOfHBColumns++;
-                    if (!columns.add(new Pair<>(hbColumn.family(), hbColumn.column()))) {
-                        throw new FieldsMappedToSameColumnException(String.format("Class %s has two fields mapped to same column %s:%s", clazz.getName(), hbColumn.family(), hbColumn.column()));
+                    if (hbColumn.isSingleVersioned()) {
+                        validateHBColumnSingleVersionField(field);
+                    } else if (hbColumn.isMultiVersioned()) {
+                        validateHBColumnMultiVersionField(field);
                     }
+                    if (!columns.add(new Pair<>(hbColumn.family(), hbColumn.column()))) {
+                        throw new FieldsMappedToSameColumnException(String.format("Class %s has more than one field (e.g. '%s') mapped to same HBase column %s", clazz.getName(), field.getName(), hbColumn));
+                    }
+                    numOfHBColumns++;
                 }
             }
             if (numOfHBColumns == 0) {
@@ -187,6 +185,7 @@ public class HBObjectMapper {
         if (!Modifier.isPublic(constructor.getModifiers())) {
             throw new EmptyConstructorInaccessibleException(String.format("Empty constructor of class %s is inaccessible", clazz.getName()));
         }
+        return hbTable;
     }
 
     /**
@@ -247,8 +246,8 @@ public class HBObjectMapper {
         }
     }
 
-    private <R extends Serializable & Comparable<R>> NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> objToMap(HBRecord<R> obj) {
-        Class<? extends HBRecord> clazz = obj.getClass();
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> objToMap(HBRecord<R> obj) {
+        Class<T> clazz = (Class<T>) obj.getClass();
         validateHBClass(clazz);
         NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map = new TreeMap<>(Bytes.BYTES_COMPARATOR);
         int numOfFieldsToWrite = 0;
@@ -319,7 +318,7 @@ public class HBObjectMapper {
             NavigableMap<Long, byte[]> output = new TreeMap<>();
             for (NavigableMap.Entry<Long, R> e : fieldValueVersions.entrySet()) {
                 Long timestamp = e.getKey();
-                R fieldValue = (R) e.getValue();
+                R fieldValue = e.getValue();
                 if (fieldValue == null)
                     continue;
                 byte[] fieldValueBytes = valueToByteArray(fieldValue, codecFlags);
@@ -335,13 +334,13 @@ public class HBObjectMapper {
      * <p>Converts an object of your bean-like class to HBase's {@link Put} object.</p>
      * <p>This method is for use in a MapReduce job whose <code>Reducer</code> class extends HBase's <code>org.apache.hadoop.hbase.mapreduce.TableReducer</code> class (in other words, a MapReduce job whose output is an HBase table)</p>
      *
-     * @param obj An object of your bean-like class (one that implements {@link HBRecord} interface)
-     * @param <R> Data type of row key
+     * @param record An object of your bean-like class (one that implements {@link HBRecord} interface)
+     * @param <R>    Data type of row key
      * @return HBase's {@link Put} object
      */
-    public <R extends Serializable & Comparable<R>> Put writeValueAsPut(HBRecord<R> obj) {
-        Put put = new Put(composeRowKey(obj));
-        for (NavigableMap.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : objToMap(obj).entrySet()) {
+    public <R extends Serializable & Comparable<R>> Put writeValueAsPut(HBRecord<R> record) {
+        Put put = new Put(composeRowKey(record));
+        for (NavigableMap.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : objToMap(record).entrySet()) {
             byte[] family = fe.getKey();
             for (Map.Entry<byte[], NavigableMap<Long, byte[]>> e : fe.getValue().entrySet()) {
                 byte[] columnName = e.getKey();
@@ -359,14 +358,14 @@ public class HBObjectMapper {
     /**
      * A <i>bulk version</i> of {@link #writeValueAsPut(HBRecord)} method
      *
-     * @param objects List of objects of your bean-like class (of type that extends {@link HBRecord})
+     * @param records List of objects of your bean-like class (of type that extends {@link HBRecord})
      * @param <R>     Data type of row key
      * @return List of HBase's {@link Put} objects
      */
-    public <R extends Serializable & Comparable<R>> List<Put> writeValueAsPut(List<HBRecord<R>> objects) {
-        List<Put> puts = new ArrayList<>(objects.size());
-        for (HBRecord<R> obj : objects) {
-            Put put = writeValueAsPut(obj);
+    public <R extends Serializable & Comparable<R>> List<Put> writeValueAsPut(List<HBRecord<R>> records) {
+        List<Put> puts = new ArrayList<>(records.size());
+        for (HBRecord<R> record : records) {
+            Put put = writeValueAsPut(record);
             puts.add(put);
         }
         return puts;
@@ -376,14 +375,14 @@ public class HBObjectMapper {
      * <p>Converts an object of your bean-like class to HBase's {@link Result} object.</p>
      * <p>This method is for use in unit-tests of a MapReduce job whose <code>Mapper</code> class extends <code>org.apache.hadoop.hbase.mapreduce.TableMapper</code> class (in other words, a MapReduce job whose input in an HBase table)</p>
      *
-     * @param obj object of your bean-like class (of type that extends {@link HBRecord})
-     * @param <R> Data type of row key
+     * @param record object of your bean-like class (of type that extends {@link HBRecord})
+     * @param <R>    Data type of row key
      * @return HBase's {@link Result} object
      */
-    public <R extends Serializable & Comparable<R>> Result writeValueAsResult(HBRecord<R> obj) {
-        byte[] row = composeRowKey(obj);
+    public <R extends Serializable & Comparable<R>> Result writeValueAsResult(HBRecord<R> record) {
+        byte[] row = composeRowKey(record);
         List<Cell> cellList = new ArrayList<>();
-        for (NavigableMap.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : objToMap(obj).entrySet()) {
+        for (NavigableMap.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : objToMap(record).entrySet()) {
             byte[] family = fe.getKey();
             for (Map.Entry<byte[], NavigableMap<Long, byte[]>> e : fe.getValue().entrySet()) {
                 byte[] columnName = e.getKey();
@@ -391,7 +390,7 @@ public class HBObjectMapper {
                 if (valuesVersioned == null)
                     continue;
                 for (Map.Entry<Long, byte[]> columnVersion : valuesVersioned.entrySet()) {
-                    cellList.add(new KeyValue(row, family, columnName, columnVersion.getKey(), columnVersion.getValue()));
+                    cellList.add(CellUtil.createCell(row, family, columnName, columnVersion.getKey(), KeyValue.Type.Put.getCode(), columnVersion.getValue()));
                 }
             }
         }
@@ -401,14 +400,14 @@ public class HBObjectMapper {
     /**
      * A <i>bulk version</i> of {@link #writeValueAsResult(HBRecord)} method
      *
-     * @param objects List of objects of your bean-like class (of type that extends {@link HBRecord})
+     * @param records List of objects of your bean-like class (of type that extends {@link HBRecord})
      * @param <R>     Data type of row key
      * @return List of HBase's {@link Result} objects
      */
-    public <R extends Serializable & Comparable<R>> List<Result> writeValueAsResult(List<HBRecord<R>> objects) {
-        List<Result> results = new ArrayList<>(objects.size());
-        for (HBRecord<R> obj : objects) {
-            Result result = writeValueAsResult(obj);
+    public <R extends Serializable & Comparable<R>> List<Result> writeValueAsResult(List<HBRecord<R>> records) {
+        List<Result> results = new ArrayList<>(records.size());
+        for (HBRecord<R> record : records) {
+            Result result = writeValueAsResult(record);
             results.add(result);
         }
         return results;
@@ -424,9 +423,9 @@ public class HBObjectMapper {
      * @param <R>    Data type of row key
      * @param <T>    Entity type
      * @return Bean-like object
-     * @throws DeserializationException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
+     * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz) {
         if (rowKey == null)
             return readValueFromResult(result, clazz);
         else
@@ -441,13 +440,13 @@ public class HBObjectMapper {
      * @param <R>    Data type of row key
      * @param <T>    Entity type
      * @return Bean-like object
-     * @throws DeserializationException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
+     * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(Result result, Class<T> clazz) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(Result result, Class<T> clazz) {
         return readValueFromResult(result, clazz);
     }
 
-    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(R rowKey, Result result, Class<T> clazz) throws DeserializationException {
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(R rowKey, Result result, Class<T> clazz) {
         if (rowKey == null)
             return readValueFromResult(result, clazz);
         else
@@ -458,12 +457,12 @@ public class HBObjectMapper {
         return result == null || result.isEmpty() || result.getRow() == null || result.getRow().length == 0;
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromResult(Result result, Class<T> clazz) throws DeserializationException {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromResult(Result result, Class<T> clazz) {
         if (isResultEmpty(result)) return null;
         return mapToObj(result.getRow(), result.getMap(), clazz);
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromRowAndResult(byte[] rowKey, Result result, Class<T> clazz) throws DeserializationException {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromRowAndResult(byte[] rowKey, Result result, Class<T> clazz) {
         if (isResultEmpty(result)) return null;
         return mapToObj(rowKey, result.getMap(), clazz);
     }
@@ -489,8 +488,8 @@ public class HBObjectMapper {
         try {
             field.setAccessible(true);
             field.set(obj, byteArrayToValue(value, field.getGenericType(), codecFlags));
-        } catch (Exception ex) {
-            throw new ConversionFailedException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), ex);
+        } catch (IllegalAccessException e) {
+            throw new ConversionFailedException("Could not set value on field \"" + field.getName() + "\" on instance of class " + obj.getClass(), e);
         }
     }
 
@@ -498,11 +497,15 @@ public class HBObjectMapper {
     /**
      * Convert a byte array representing HBase column data to appropriate data type (boxed as object)
      */
-    Object byteArrayToValue(byte[] value, Type type, Map<String, String> codecFlags) throws DeserializationException {
-        if (value == null || value.length == 0)
-            return null;
-        else
-            return codec.deserialize(value, type, codecFlags);
+    Object byteArrayToValue(byte[] value, Type type, Map<String, String> codecFlags) {
+        try {
+            if (value == null || value.length == 0)
+                return null;
+            else
+                return codec.deserialize(value, type, codecFlags);
+        } catch (DeserializationException e) {
+            throw new CodecException("Error while deserializing", e);
+        }
     }
 
     /**
@@ -515,9 +518,9 @@ public class HBObjectMapper {
      * @param <R>    Data type of row key
      * @param <T>    Entity type
      * @return Bean-like object
-     * @throws DeserializationException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
+     * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz) {
         if (rowKey == null)
             return readValueFromPut(put, clazz);
         else
@@ -534,16 +537,16 @@ public class HBObjectMapper {
      * @param <R>    Data type of row key
      * @param <T>    Entity type
      * @return Bean-like object
-     * @throws DeserializationException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
+     * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(String rowKey, Put put, Class<T> clazz) throws DeserializationException {
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(R rowKey, Put put, Class<T> clazz) {
         if (rowKey == null)
             return readValueFromPut(put, clazz);
         else
-            return readValueFromRowAndPut(Bytes.toBytes(rowKey), put, clazz);
+            return readValueFromRowAndPut(rowKeyToBytes(rowKey), put, clazz);
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromRowAndPut(byte[] rowKey, Put put, Class<T> clazz) throws DeserializationException {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromRowAndPut(byte[] rowKey, Put put, Class<T> clazz) {
         Map<byte[], List<Cell>> rawMap = put.getFamilyCellMap();
         NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map = new TreeMap<>(Bytes.BYTES_COMPARATOR);
         for (Map.Entry<byte[], List<Cell>> familyNameAndColumnValues : rawMap.entrySet()) {
@@ -563,7 +566,7 @@ public class HBObjectMapper {
         return mapToObj(rowKey, map, clazz);
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromPut(Put put, Class<T> clazz) throws DeserializationException {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromPut(Put put, Class<T> clazz) {
         if (put == null || put.isEmpty() || put.getRow() == null || put.getRow().length == 0) {
             return null;
         }
@@ -578,9 +581,9 @@ public class HBObjectMapper {
      * @param <R>   Data type of row key
      * @param <T>   Entity type
      * @return Bean-like object
-     * @throws DeserializationException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
+     * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(Put put, Class<T> clazz) throws DeserializationException {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(Put put, Class<T> clazz) {
         return readValueFromPut(put, clazz);
     }
 
@@ -592,15 +595,15 @@ public class HBObjectMapper {
      * <li>unit tests for mapper jobs that extend HBase's <code>org.apache.hadoop.hbase.mapreduce.TableMapper</code> class</li>
      * </ul>
      *
-     * @param obj object of your bean-like class (of type that extends {@link HBRecord})
-     * @param <R> Data type of row key
+     * @param record object of your bean-like class (of type that extends {@link HBRecord})
+     * @param <R>    Data type of row key
      * @return Row key
      */
-    public <R extends Serializable & Comparable<R>> ImmutableBytesWritable getRowKey(HBRecord<R> obj) {
-        if (obj == null) {
+    public <R extends Serializable & Comparable<R>> ImmutableBytesWritable getRowKey(HBRecord<R> record) {
+        if (record == null) {
             throw new NullPointerException("Cannot compose row key for null objects");
         }
-        return new ImmutableBytesWritable(composeRowKey(obj));
+        return new ImmutableBytesWritable(composeRowKey(record));
     }
 
     private <R extends Serializable & Comparable<R>> byte[] composeRowKey(HBRecord<R> obj) {
@@ -613,7 +616,8 @@ public class HBObjectMapper {
         if (rowKey == null || rowKey.toString().isEmpty()) {
             throw new RowKeyCantBeEmptyException();
         }
-        return valueToByteArray(rowKey, null);
+        return valueToByteArray(rowKey);
+
     }
 
     /**
@@ -624,16 +628,24 @@ public class HBObjectMapper {
      * @param <T>   Entity type
      * @return Return set of column families used in input class
      */
+    @Deprecated
     public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Set<String> getColumnFamilies(Class<T> clazz) {
-        validateHBClass(clazz);
-        Set<String> columnFamilySet = new HashSet<>();
-        for (Field field : clazz.getDeclaredFields()) {
-            WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-            if (hbColumn.isPresent())
-                columnFamilySet.add(hbColumn.family());
-        }
-        return columnFamilySet;
+        return getColumnFamiliesAndVersions(clazz).keySet();
     }
+
+    /**
+     * Get list of column families and their max versions, mapped in definition of your bean-like class
+     *
+     * @param clazz {@link Class} that you're reading (must implement {@link HBRecord} interface)
+     * @param <R>   Data type of row key
+     * @param <T>   Entity type
+     * @return Map of column families and their max versions
+     */
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Map<String, Integer> getColumnFamiliesAndVersions(Class<T> clazz) {
+        final WrappedHBTable<R, T> hbTable = validateHBClass(clazz);
+        return hbTable.getFamiliesAndVersions();
+    }
+
 
     /**
      * Checks whether input class can be converted to HBase data types and vice-versa
@@ -664,8 +676,9 @@ public class HBObjectMapper {
         validateHBClass(clazz);
         Map<String, Field> mappings = new HashMap<>();
         for (Field field : clazz.getDeclaredFields()) {
-            if (new WrappedHBColumn(field).isPresent())
+            if (new WrappedHBColumn(field).isPresent()) {
                 mappings.put(field.getName(), field);
+            }
         }
         return mappings;
     }

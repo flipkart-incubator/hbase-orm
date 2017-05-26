@@ -4,10 +4,10 @@
 This compact utility library is an annotation based *object mapper* for HBase (written in Java) that helps you:
 
 * convert objects of your bean-like classes to HBase rows and vice-versa
- * for use in Hadoop MapReduce jobs that read from and/or write to HBase tables
- * and write efficient unit-tests for `Mapper` and `Reducer` classes
+    * for use in Hadoop MapReduce jobs that read from and/or write to HBase tables
+    * and write efficient unit-tests for `Mapper` and `Reducer` classes
 * define *data access objects* for entities that map to HBase rows
- * for single/range/bulk access of rows of an HBase table
+    * for single/range/bulk access of rows of an HBase table
 
 ## Usage
 Let's say you've an HBase table `citizens` with row-key format of `country_code#UID`. Now, let's say your table is created with three column families `main`, `optional` and `tracked`, which may have columns `uid`, `name`, `salary` etc.
@@ -15,7 +15,7 @@ Let's say you've an HBase table `citizens` with row-key format of `country_code#
 This library enables to you represent your HBase table as a bean-like class, as below:
 
 ```java
-@HBTable("citizens")
+@HBTable(name = "citizens", families = {@Family(name = "main"), @Family(name = "optional", versions = 3), @Family(name = "tracked", versions = 10)})
 public class Citizen implements HBRecord<String> {
 
     @HBRowKey
@@ -42,7 +42,7 @@ public class Citizen implements HBRecord<String> {
     @HBColumnMultiVersion(family = "tracked", column = "phone_number")
     private NavigableMap<Long, Integer> phoneNumber;
     
-    @HBColumn(family = "optional", column = "pincode", codecFlags = {@Flag(name = "serializeAsString", value = "true")})
+    @HBColumn(family = "optional", column = "pincode", codecFlags = {@Flag(name = BestSuitCodec.SERIALISE_AS_STRING, value = "true")})
     private Integer pincode;
     
     @Override
@@ -66,25 +66,21 @@ That is,
 * Logics for conversion of HBase row key to member variables of `Citizen` objects and vice-versa are implemented using `parseRowKey` and `composeRowKey` methods respectively.
 * The data type representing row key is the type parameter to `HBRecord` generic interface (in above case, `String`). Fields that form row key are annotated with `@HBRowKey`.
 * Names of columns and their column families are specified using `@HBColumn` or `@HBColumnMultiVersion` annotations.
-* The class may contain fields of simple data types (e.g. `String`, `Integer`), generic data types (e.g. `Map`, `List`) or even your custom class.
+* The class may contain fields of simple data types (e.g. `String`, `Integer`), generic data types (e.g. `Map`, `List`), custom class (e.g. `Dependents`) or even generics of custom class (e.g. `List<Dependent>`) 
 * The `@HBColumnMultiVersion` annotation allows you to map multiple versions of column in a `NavigableMap<Long, ?>`. In above example, field `phoneNumber` is mapped to column `phone_number` within the column family `tracked` (which is configured for multiple versions)
 
-See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Citizen.java) and [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/entities/Employee.java) for detailed examples.
-
-Now, this library enables you to represent rows of `citizens` HBase table as instances of `Citizen` class. For above definition of your `Citizen` class,
-
-* you can use methods in `HBObjectMapper` class to convert `Citizen` objects to HBase's `Put` and `Result` objects and vice-versa
-* you can inherit from class `AbstractHBDAO` that contains methods like `get` (for random single/bulk/range access of rows), `persist` (for writing rows) and `delete` (for deleting rows)
+See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Citizen.java) and [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Employee.java) for detailed examples.
 
 ### Serialization / Deserialization
 
 * The default codec of this library has the following behavior:
- * uses HBase's native methods to serialize objects of data types `Boolean`, `Short`, `Integer`, `Long`, `Float`, `Double`, `String` and `BigDecimal`
- * uses [Jackson's JSON serializer](http://wiki.fasterxml.com/JacksonHome) for all other data types
- * serializes `null` as `null`
-* To control/modify serialization/deserialization behavior, you may define your own codec (by implementing the `Codec` interface) or extend default codec (by extending `BestSuitCodec` class).
-* The optional parameter `codecFlag` (supported by both `@HBColumn` and `@HBColumnMultiVersion` annotations) can be used to pass custom flags to the underlying codec.
-* The default codec takes a flag `serializeAsString` (like in the above example), which when set to `true`, serializes even numerical fields as a `String`. Your custom codec may take other such flags.
+    * uses HBase's native methods to serialize objects of data types `Boolean`, `Short`, `Integer`, `Long`, `Float`, `Double`, `String` and `BigDecimal`
+    * uses [Jackson's JSON serializer](http://wiki.fasterxml.com/JacksonHome) for all other data types
+    * serializes `null` as `null`
+* To control/modify serialization/deserialization behavior, you may define your own codec (by implementing the `Codec` interface) or you may extend the default codec (`BestSuitCodec`).
+* The optional parameter `codecFlag` (supported by both `@HBColumn` and `@HBColumnMultiVersion` annotations) can be used to pass custom flags to the underlying codec. (e.g. You may write your codec to serialize field `Integer id` in `Citizen` class differently from field `Integer id` in `Employee` class)
+* The default codec class `BestSuitCodec` takes a flag `BestSuitCodec.SERIALISE_AS_STRING`, whose value is "serializeAsString" (as in the above `Citizen` class example). When this flag is set to `true` on a field, the default codec serializes that field (even numerical fields) as `String`s.
+    * Your custom codec may take other such flags to customize serialization/deserialization behavior at a class field level.
 
 ## MapReduce use-cases
 
@@ -92,7 +88,7 @@ Now, this library enables you to represent rows of `citizens` HBase table as ins
 If your MapReduce job is reading from an HBase table, in your `map()` method, HBase's `Result` object can be converted to object of your bean-like class using below method: 
 
 ```java
-<R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
+T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
 ```
 
 For example:
@@ -100,16 +96,16 @@ For example:
 ```java
 Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
 ```
-See file [CitizenMapper.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/samples/CitizenMapper.java) for full sample code.
+See file [CitizenMapper.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/mr/samples/CitizenMapper.java) for full sample code.
 
 ### Reducer
 If your MapReduce job is writing to an HBase table, in your `reduce()` method, object of your bean-like class can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
-<R extends Serializable & Comparable<R>> ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+ImmutableBytesWritable getRowKey(HBRecord<R> obj)
 ```
 ```java
-<R extends Serializable & Comparable<R>> Put writeValueAsPut(HBRecord<R> obj)
+Put writeValueAsPut(HBRecord<R> obj)
 ```
 For example, below code in Reducer writes your object as one HBase row with appropriate column families and columns:
 
@@ -118,7 +114,7 @@ Citizen citizen = new Citizen(/*details*/);
 context.write(hbObjectMapper.getRowKey(citizen), hbObjectMapper.writeValueAsPut(citizen));
 ```
 
-See file [CitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/samples/CitizenReducer.java) for full sample code.
+See file [CitizenReducer.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/mr/samples/CitizenReducer.java) for full sample code.
 
 ### Unit-test for Mapper
 If your MapReduce job is reading from an HBase table, you would want to unit-test your `map()` method as below.
@@ -126,10 +122,10 @@ If your MapReduce job is reading from an HBase table, you would want to unit-tes
 Object of your bean-like class can be converted to HBase's `Result` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
-<R extends Serializable & Comparable<R>> ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+ImmutableBytesWritable getRowKey(HBRecord<R> obj)
 ```
 ```java
-<R extends Serializable & Comparable<R>> Result writeValueAsResult(HBRecord<R> obj)
+Result writeValueAsResult(HBRecord<R> obj)
 ```
 Below is an example of unit-test of a Mapper using [MRUnit](https://mrunit.apache.org/):
 
@@ -147,7 +143,7 @@ citizenMapDriver
 .runTest();
 ```
 
-See file [TestCitizenMR.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenMR.java) for full sample code.
+See file [TestCitizenMR.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/mr/TestCitizenMR.java) for full sample code.
 
 ### Unit-test for Reducer
 If your MapReduce job is writing to an HBase table, you would want to unit-test your `reduce()` method as below.
@@ -155,7 +151,7 @@ If your MapReduce job is writing to an HBase table, you would want to unit-test 
 HBase's `Put` object can be converted to your object of you bean-like class using below method:
  
 ```java
-<R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz)
+T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz)
 ```
 
 Below is an example of unit-test of a Reducer using [MRUnit](https://mrunit.apache.org/):
@@ -175,7 +171,7 @@ CitizenSummary citizenSummary = hbObjectMapper.readValue(
 );
 ```
 
-Again, see file [TestCitizenMR.java](./src/test/java/com/flipkart/hbaseobjectmapper/mr/TestCitizenMR.java) for full sample code.
+Again, see file [TestCitizenMR.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/mr/TestCitizenMR.java) for full sample code.
 
 ## HBase Random Access
 This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
@@ -192,7 +188,7 @@ public class CitizenDAO extends AbstractHBDAO<String, Citizen> {
     }
 }
 ```
-(see [CitizenDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/daos/CitizenDAO.java))
+(see [CitizenDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/daos/CitizenDAO.java))
 
 Once defined, you can access, manipulate and persist a row of `citizens` HBase table as below:
 
@@ -209,11 +205,12 @@ Citizen[] ape = citizenDao.get(new String[] {"IND#1", "IND#2"}); //bulk get
 
 // In below, note that "IND#1" is inclusive and "IND#5" is exclusive
 List<Citizen> lpe = citizenDao.get("IND#1", "IND#5"); //range get
+// ('versioned' variant above method is available)
 
-// for row keys in range ["IND#1", "IND#5"), fetch 3 versions of field 'phoneNumberHistory' as a NavigableMap<row key, NavigableMap<timestamp, column value>>:
+// for row keys in range ["IND#1", "IND#5"), fetch 3 versions of field 'phoneNumber' as a NavigableMap<row key, NavigableMap<timestamp, column value>>:
 NavigableMap<String, NavigableMap<Long, Object>> phoneNumberHistory 
-	= citizenDao.fetchFieldValues("IND#1", "IND#5", "phoneNumberHistory", 3);
-//(bulk variant of above range method is also available)
+	= citizenDao.fetchFieldValues("IND#1", "IND#5", "phoneNumber", 3);
+// (bulk variants of above range method are also available)
 
 pe.setPincode(560034); // change a field
 
@@ -221,13 +218,16 @@ citizenDao.persist(pe); // Save it back to HBase
 
 citizenDao.delete(pe); // Delete a row by it's object reference
 
+citizenDao.delete(Arrays.asList(pe1, pe2)); // Delete multiple rows by list of object references
+
 citizenDao.delete("IND#2"); // Delete a row by it's row key
-// (bulk variant of delete method is also available)
+
+citizenDao.delete(new String[] {"IND#3", "IND#4"}); // Delete a bunch of rows by their row keys
 
 citizenDao.getHBaseTable() // returns HTable instance (in case you want to directly play around) 
 
 ```
-(see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/TestsAbstractHBDAO.java) for more detailed examples)
+(see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/TestsAbstractHBDAO.java) for more detailed examples)
 
 **Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if you do intend to use HBase via ORM, I suggest you use [Apache Phoenix](https://phoenix.apache.org/). 
 
@@ -246,7 +246,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.5.1</version>
+	<version>1.6</version>
 </dependency>
 ```
 See artifact details for [com.flipkart:hbase-object-mapper](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.flipkart%22%20AND%20a%3A%22hbase-object-mapper%22) on **Maven Central**
@@ -255,7 +255,7 @@ See artifact details for [com.flipkart:hbase-object-mapper](http://search.maven.
 To build this project, follow below steps:
 
  * Do a `git clone` of this repository
- * Checkout latest stable version `git checkout v1.5.1`
+ * Checkout latest stable version `git checkout v1.6`
  * Execute `mvn clean install` from shell
 
 Currently, projects that use this library are running on [Hortonworks Data Platform v2.2](http://hortonworks.com/blog/announcing-hdp-2-2/) (corresponds to Hadoop 2.6 and HBase 0.98). However, if you're using a different distribution of Hadoop (like [Cloudera](http://www.cloudera.com/)) or if you are using a different version of Hadoop, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.

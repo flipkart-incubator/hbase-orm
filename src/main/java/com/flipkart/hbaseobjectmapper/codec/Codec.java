@@ -1,12 +1,14 @@
 package com.flipkart.hbaseobjectmapper.codec;
 
 
+import com.flipkart.hbaseobjectmapper.HBObjectMapper;
+
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Interface that defines serialization and deserialization behavior for {@link com.flipkart.hbaseobjectmapper.HBObjectMapper HBObjectMapper}
+ * Interface that defines serialization and deserialization behavior for {@link HBObjectMapper HBObjectMapper}
  */
 public interface Codec {
     /**

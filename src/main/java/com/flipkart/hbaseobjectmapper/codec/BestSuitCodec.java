@@ -3,6 +3,7 @@ package com.flipkart.hbaseobjectmapper.codec;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flipkart.hbaseobjectmapper.Flag;
 import com.flipkart.hbaseobjectmapper.exceptions.BadHBaseLibStateException;
 import org.apache.hadoop.hbase.util.Bytes;
 
@@ -22,13 +23,15 @@ import java.util.Map;
  * <li>serializes <code>null</code> as <code>null</code></li>
  * </ol>
  * <p>
- * This codec takes the following {@link com.flipkart.hbaseobjectmapper.Flag Flag}s:
+ * This codec takes the following {@link Flag Flag}s:
  * <ul>
- * <li><b><code>serializeAsString</code></b>: When passed, it indicates this codec to store field value in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). Note that, this flag applies only to fields of data types in point 1 above.</li>
+ * <li><b><code>{@link #SERIALISE_AS_STRING}</code></b>: When passed, it indicates this codec to store field value in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). Note that, this flag applies only to fields of data types in point 1 above.</li>
  * </ul>
  */
 
 public class BestSuitCodec implements Codec {
+    public static final String SERIALISE_AS_STRING = "serializeAsString";
+
     private static final Map<Class, String> fromBytesMethodNames = new HashMap<Class, String>() {
         {
             put(Boolean.class, "toBoolean");
@@ -151,15 +154,16 @@ public class BestSuitCodec implements Codec {
                 throw new DeserializationException("Could not deserialize byte array into an object using HBase's native methods", e);
             }
         } else {
+            JavaType javaType = null;
             try {
-                return objectMapper.readValue(bytes, objectMapper.constructType(type));
+                javaType = objectMapper.constructType(type);
+                return objectMapper.readValue(bytes, javaType);
             } catch (Exception e) {
-                throw new DeserializationException("Could not deserialize JSON into an object using Jackson", e);
+                throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson\n(Jackson resolved type = %s)", type, javaType), e);
             }
         }
 
     }
-
 
     /*
     * @inherit
@@ -171,6 +175,6 @@ public class BestSuitCodec implements Codec {
     }
 
     private boolean isSerializeAsStringOn(Map<String, String> flags) {
-        return flags != null && flags.get("serializeAsString") != null && flags.get("serializeAsString").equalsIgnoreCase("true");
+        return flags != null && flags.get(SERIALISE_AS_STRING) != null && flags.get(SERIALISE_AS_STRING).equalsIgnoreCase("true");
     }
 }

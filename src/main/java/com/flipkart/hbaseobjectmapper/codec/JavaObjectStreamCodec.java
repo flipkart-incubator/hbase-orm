@@ -42,4 +42,14 @@ public class JavaObjectStreamCodec implements Codec {
         return true;
     }
 
+    public static Serializable deepCopy(Serializable object) throws SerializationException, DeserializationException {
+        final JavaObjectStreamCodec codec = new JavaObjectStreamCodec();
+        try {
+            final byte[] bytes = codec.serialize(object, null);
+            return codec.deserialize(bytes, object.getClass(), null);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not deep copy: " + object, e);
+        }
+    }
+
 }
