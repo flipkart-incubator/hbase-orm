@@ -348,7 +348,7 @@ public class HBObjectMapper {
                 if (columnValuesVersioned == null)
                     continue;
                 for (Map.Entry<Long, byte[]> versionAndValue : columnValuesVersioned.entrySet()) {
-                    put.add(family, columnName, versionAndValue.getKey(), versionAndValue.getValue());
+                    put.addColumn(family, columnName, versionAndValue.getKey(), versionAndValue.getValue());
                 }
             }
         }
@@ -618,19 +618,6 @@ public class HBObjectMapper {
         }
         return valueToByteArray(rowKey);
 
-    }
-
-    /**
-     * Get list of column families mapped in definition of your bean-like class
-     *
-     * @param clazz {@link Class} that you're reading (must implement {@link HBRecord} interface)
-     * @param <R>   Data type of row key
-     * @param <T>   Entity type
-     * @return Return set of column families used in input class
-     */
-    @Deprecated
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Set<String> getColumnFamilies(Class<T> clazz) {
-        return getColumnFamiliesAndVersions(clazz).keySet();
     }
 
     /**

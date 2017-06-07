@@ -39,7 +39,7 @@ public class TestCitizenMR extends AbstractMRTest {
 
     @Test
     public void testSingleMapper() throws IOException {
-        Citizen citizen = (Citizen) TestObjects.validCitizenObjects.get(0);
+        Citizen citizen = TestObjects.validCitizenObjects.get(0);
         citizenMapDriver
                 .withInput(
                         hbObjectMapper.getRowKey(citizen),

@@ -21,7 +21,7 @@ public @interface Family {
     /**
      * Maximum number of versions configured for a given column family of the HBase table
      *
-     * @return Max mumber of versions
+     * @return Max number of versions
      */
     int versions() default 1;
 }

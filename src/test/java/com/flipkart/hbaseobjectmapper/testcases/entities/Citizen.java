@@ -16,7 +16,7 @@ import java.util.NavigableMap;
 @EqualsAndHashCode
 @HBTable(name = "citizens", families = {@Family(name = "main"), @Family(name = "optional", versions = 10)})
 public class Citizen implements HBRecord<String> {
-    private static final String KEY_DELIM = "#";
+    private static final String ROWKEY_DELIMITER = "#";
     @HBRowKey
     private String countryCode;
     @HBRowKey
@@ -81,12 +81,12 @@ public class Citizen implements HBRecord<String> {
 
     @Override
     public String composeRowKey() {
-        return String.format("%s%s%d", countryCode, KEY_DELIM, uid);
+        return String.format("%s%s%d", countryCode, ROWKEY_DELIMITER, uid);
     }
 
     @Override
     public void parseRowKey(String rowKey) {
-        String[] pieces = rowKey.split(KEY_DELIM);
+        String[] pieces = rowKey.split(ROWKEY_DELIMITER);
         this.countryCode = pieces[0];
         this.uid = Integer.parseInt(pieces[1]);
     }

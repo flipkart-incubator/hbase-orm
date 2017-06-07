@@ -12,7 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.6</version>
+    <version>1.7</version>
     <url>https://flipkart-incubator.github.io/hbase-object-mapper/</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-object-mapper</url>
@@ -45,8 +45,8 @@
     </repositories>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <version.hadoop>2.6.0.2.2.0.0-2041</version.hadoop>
-        <version.hbase>0.98.4.2.2.0.0-2041-hadoop2</version.hbase>
+        <version.hadoop>2.7.1.2.4.0.0-169</version.hadoop>
+        <version.hbase>1.1.2.2.4.0.0-169</version.hbase>
     </properties>
     <distributionManagement>
         <repository>

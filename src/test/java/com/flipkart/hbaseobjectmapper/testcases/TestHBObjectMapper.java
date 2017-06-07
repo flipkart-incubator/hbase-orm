@@ -188,7 +188,7 @@ public class TestHBObjectMapper {
     }
 
     @Test
-    public void testInvalidObjs() {
+    public void testInvalidObjects() {
         for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : TestObjects.invalidObjects) {
             HBRecord record = p.getValue0();
             String errorMessage = "An object with " + p.getValue1() + " should've thrown an " + p.getValue2().getName();

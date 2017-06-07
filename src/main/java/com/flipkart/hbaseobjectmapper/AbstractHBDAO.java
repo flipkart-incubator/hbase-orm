@@ -1,6 +1,5 @@
 package com.flipkart.hbaseobjectmapper;
 
-import com.flipkart.hbaseobjectmapper.codec.DeserializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.FieldNotMappedToHBaseColumnException;
 import com.google.common.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
@@ -33,7 +32,8 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     private static final int DEFAULT_NUM_VERSIONS = 1;
     protected static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
-    protected final HTable hTable;
+    protected final Connection connection;
+    protected final Table table;
     protected final Class<R> rowKeyClass;
     protected final Class<T> hbRecordClass;
     protected final WrappedHBTable<R, T> hbTable;
@@ -42,12 +42,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Constructs a data access object. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>
      *
-     * @param conf Hadoop configuration
+     * @param configuration Hadoop configuration
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
     @SuppressWarnings("unchecked")
-    protected AbstractHBDAO(Configuration conf) throws IOException {
+    protected AbstractHBDAO(Configuration configuration) throws IOException {
         hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
         }.getRawType();
         rowKeyClass = (Class<R>) new TypeToken<R>(getClass()) {
@@ -56,7 +56,8 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             throw new IllegalStateException(String.format("Unable to resolve HBase record/rowkey type (record class is resolving to %s and rowkey class is resolving to %s)", hbRecordClass, rowKeyClass));
         }
         hbTable = new WrappedHBTable<>(hbRecordClass);
-        hTable = new HTable(conf, hbTable.getName());
+        connection = ConnectionFactory.createConnection(configuration);
+        table = connection.getTable(hbTable.getName());
         fields = hbObjectMapper.getHBFields(hbRecordClass);
     }
 
@@ -69,7 +70,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T get(R rowKey, int versions) throws IOException {
-        Result result = this.hTable.get(new Get(hbObjectMapper.rowKeyToBytes(rowKey)).setMaxVersions(versions));
+        Result result = this.table.get(new Get(hbObjectMapper.rowKeyToBytes(rowKey)).setMaxVersions(versions));
         return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
     }
 
@@ -98,7 +99,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             gets.add(new Get(hbObjectMapper.rowKeyToBytes(rowKey)).setMaxVersions(versions));
         }
-        Result[] results = this.hTable.get(gets);
+        Result[] results = this.table.get(gets);
         @SuppressWarnings("unchecked") T[] records = (T[]) Array.newInstance(hbRecordClass, rowKeys.length);
         for (int i = 0; i < records.length; i++) {
             records[i] = hbObjectMapper.readValue(rowKeys[i], results[i], hbRecordClass);
@@ -130,7 +131,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             gets.add(new Get(hbObjectMapper.rowKeyToBytes(rowKey)).setMaxVersions(versions));
         }
-        Result[] results = this.hTable.get(gets);
+        Result[] results = this.table.get(gets);
         List<T> records = new ArrayList<>(rowKeys.size());
         for (Result result : results) {
             records.add(hbObjectMapper.readValue(result, hbRecordClass));
@@ -160,7 +161,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public List<T> get(R startRowKey, R endRowKey, int versions) throws IOException {
         Scan scan = new Scan(hbObjectMapper.rowKeyToBytes(startRowKey), hbObjectMapper.rowKeyToBytes(endRowKey)).setMaxVersions(versions);
-        ResultScanner scanner = hTable.getScanner(scan);
+        ResultScanner scanner = table.getScanner(scan);
         List<T> records = new ArrayList<>();
         for (Result result : scanner) {
             records.add(hbObjectMapper.readValue(result, hbRecordClass));
@@ -189,7 +190,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public R persist(HBRecord<R> record) throws IOException {
         Put put = hbObjectMapper.writeValueAsPut(record);
-        hTable.put(put);
+        table.put(put);
         return record.composeRowKey();
     }
 
@@ -207,7 +208,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             puts.add(hbObjectMapper.writeValueAsPut(object));
             rowKeys.add(object.composeRowKey());
         }
-        hTable.put(puts);
+        table.put(puts);
         return rowKeys;
     }
 
@@ -220,7 +221,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public void delete(R rowKey) throws IOException {
         Delete delete = new Delete(hbObjectMapper.rowKeyToBytes(rowKey));
-        this.hTable.delete(delete);
+        this.table.delete(delete);
     }
 
     /**
@@ -244,7 +245,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             deletes.add(new Delete(hbObjectMapper.rowKeyToBytes(rowKey)));
         }
-        this.hTable.delete(deletes);
+        this.table.delete(deletes);
     }
 
     /**
@@ -258,7 +259,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (HBRecord<R> record : records) {
             deletes.add(new Delete(hbObjectMapper.rowKeyToBytes(record.composeRowKey())));
         }
-        this.hTable.delete(deletes);
+        this.table.delete(deletes);
     }
 
     /**
@@ -269,17 +270,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public String getTableName() {
         HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
         return hbTable.name();
-    }
-
-    /**
-     * Get list of mapped column families
-     *
-     * @return A {@link Set} containing names of column families as mapped in the entity class
-     * @deprecated Use {@link #getColumnFamiliesAndVersions()} instead
-     */
-    @Deprecated
-    public Set<String> getColumnFamilies() {
-        return hbObjectMapper.getColumnFamilies(hbRecordClass);
     }
 
     /**
@@ -306,8 +296,8 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @return {@link HTable} object
      */
-    public HTable getHBaseTable() {
-        return hTable;
+    public Table getHBaseTable() {
+        return table;
     }
 
     private Field getField(String fieldName) {
@@ -318,7 +308,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         return field;
     }
 
-    private void populateFieldValuesToMap(Field field, Result result, Map<R, NavigableMap<Long, Object>> map) throws DeserializationException {
+    private void populateFieldValuesToMap(Field field, Result result, Map<R, NavigableMap<Long, Object>> map) {
         if (result.isEmpty()) {
             return;
         }
@@ -404,7 +394,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         Scan scan = new Scan(hbObjectMapper.rowKeyToBytes(startRowKey), hbObjectMapper.rowKeyToBytes(endRowKey));
         scan.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
         scan.setMaxVersions(versions);
-        ResultScanner scanner = hTable.getScanner(scan);
+        ResultScanner scanner = table.getScanner(scan);
         NavigableMap<R, NavigableMap<Long, Object>> map = new TreeMap<>();
         for (Result result : scanner) {
             populateFieldValuesToMap(field, result, map);
@@ -445,7 +435,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             get.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
             gets.add(get);
         }
-        Result[] results = this.hTable.get(gets);
+        Result[] results = this.table.get(gets);
         Map<R, NavigableMap<Long, Object>> map = new HashMap<>(rowKeys.length, 1.0f);
         for (Result result : results) {
             populateFieldValuesToMap(field, result, map);
@@ -461,6 +451,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
 
     @Override
     public void close() throws IOException {
-        hTable.close();
+        table.close();
     }
 }

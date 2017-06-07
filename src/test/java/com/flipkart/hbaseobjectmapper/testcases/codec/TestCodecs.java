@@ -121,7 +121,7 @@ public class TestCodecs {
     public void testDeserializationFailure() {
         HBObjectMapper hbObjectMapper = new HBObjectMapper();
         Put put = hbObjectMapper.writeValueAsPut(TestObjects.validObjects.get(0));
-        put.add(Bytes.toBytes("optional"), Bytes.toBytes("age"), new byte[]{0}); // Corrupt serialized data
+        put.addColumn(Bytes.toBytes("optional"), Bytes.toBytes("age"), new byte[]{0}); // Corrupt serialized data
         try {
             System.out.println(hbObjectMapper.readValue(put, Citizen.class));
             fail("Trying to serialize corrupt data should've thrown " + CodecException.class.getSimpleName());

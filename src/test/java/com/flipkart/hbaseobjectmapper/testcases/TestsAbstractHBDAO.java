@@ -77,12 +77,13 @@ public class TestsAbstractHBDAO {
         hBaseCluster.createTable("citizens_summary", m(e("a", 3)));
         try (
                 CitizenDAO citizenDao = new CitizenDAO(configuration);
-                CitizenSummaryDAO citizenSummaryDAO = new CitizenSummaryDAO(configuration);
+                CitizenSummaryDAO citizenSummaryDAO = new CitizenSummaryDAO(configuration)
         ) {
             assertEquals(citizenDao.getTableName(), "citizens");
-            assertEquals("Issue with column families of 'citizens' table\n" + citizenDao.getColumnFamilies(), s("main", "optional"), citizenDao.getColumnFamilies());
+            final Set<String> columnFamiliesCitizen = citizenDao.getColumnFamiliesAndVersions().keySet(), columnFamiliesCitizenSummary = citizenSummaryDAO.getColumnFamiliesAndVersions().keySet();
+            assertEquals("Issue with column families of 'citizens' table\n" + columnFamiliesCitizen, s("main", "optional"), columnFamiliesCitizen);
             assertEquals(citizenSummaryDAO.getTableName(), "citizens_summary");
-            assertEquals("Issue with column families of 'citizens_summary' table\n" + citizenSummaryDAO.getColumnFamilies(), s("a"), citizenSummaryDAO.getColumnFamilies());
+            assertEquals("Issue with column families of 'citizens_summary' table\n" + columnFamiliesCitizenSummary, s("a"), columnFamiliesCitizenSummary);
             final List<Citizen> records = TestObjects.validCitizenObjects;
             String[] allRowKeys = new String[records.size()];
             Map<String, Map<String, Object>> expectedFieldValues = new HashMap<>();
