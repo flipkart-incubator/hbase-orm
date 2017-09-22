@@ -4,6 +4,9 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.util.Map;
 
+/**
+ * Just a reference implementation, kept here for testing purposes. In real world, you should <b>never</b> use this codec. Either use the (default) {@link BestSuitCodec} or write your own.
+ */
 public class JavaObjectStreamCodec implements Codec {
     /*
      * @inherit
@@ -39,7 +42,7 @@ public class JavaObjectStreamCodec implements Codec {
     */
     @Override
     public boolean canDeserialize(Type type) {
-        return true;
+        return true; // I'm (may be wrongly) assuming ObjectInputStream and ObjectOutputStream works on all objects
     }
 
     public static Serializable deepCopy(Serializable object) {

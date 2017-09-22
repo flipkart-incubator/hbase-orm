@@ -46,7 +46,7 @@ public class TestCitizenMR extends AbstractMRTest {
                         hbObjectMapper.writeValueAsResult(citizen)
 
                 )
-                .withOutput(hbObjectMapper.rowKeyToIbw("key"), new IntWritable(citizen.getAge()))
+                .withOutput(hbObjectMapper.toIbw("key"), new IntWritable(citizen.getAge()))
                 .runTest();
     }
 
@@ -61,7 +61,7 @@ public class TestCitizenMR extends AbstractMRTest {
 
     @Test
     public void testReducer() throws Exception {
-        Pair<ImmutableBytesWritable, Mutation> reducerResult = citizenReduceDriver.withInput(hbObjectMapper.rowKeyToIbw("key"), Arrays.asList(new IntWritable(1), new IntWritable(5))).run().get(0);
+        Pair<ImmutableBytesWritable, Mutation> reducerResult = citizenReduceDriver.withInput(hbObjectMapper.toIbw("key"), Arrays.asList(new IntWritable(1), new IntWritable(5))).run().get(0);
         CitizenSummary citizenSummary = hbObjectMapper.readValue(reducerResult.getFirst(), (Put) reducerResult.getSecond(), CitizenSummary.class);
         assertEquals("Unexpected result from CitizenReducer", (Float) 3.0f, citizenSummary.getAverageAge());
     }

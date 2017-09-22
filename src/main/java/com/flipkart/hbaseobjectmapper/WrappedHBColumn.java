@@ -2,21 +2,25 @@ package com.flipkart.hbaseobjectmapper;
 
 
 import com.flipkart.hbaseobjectmapper.exceptions.BothHBColumnAnnotationsPresentException;
+import com.flipkart.hbaseobjectmapper.exceptions.DuplicateCodecFlagForColumnException;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
+
 /**
  * A wrapper class for {@link HBColumn} and {@link HBColumnMultiVersion} annotations (for internal use only)
  */
 class WrappedHBColumn {
-    private String family, column;
-    private boolean multiVersioned = false, singleVersioned = false;
-    private Class annotationClass;
-    private Map<String, String> codecFlags;
+    private final String family, column;
+    private final boolean multiVersioned, singleVersioned;
+    private final Class annotationClass;
+    private final Map<String, String> codecFlags;
+    private final Field field;
 
     WrappedHBColumn(Field field) {
+        this.field = field;
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);
         HBColumnMultiVersion hbColumnMultiVersion = field.getAnnotation(HBColumnMultiVersion.class);
         if (hbColumn != null && hbColumnMultiVersion != null) {
@@ -26,21 +30,33 @@ class WrappedHBColumn {
             family = hbColumn.family();
             column = hbColumn.column();
             singleVersioned = true;
+            multiVersioned = false;
             annotationClass = HBColumn.class;
             codecFlags = toMap(hbColumn.codecFlags());
         } else if (hbColumnMultiVersion != null) {
             family = hbColumnMultiVersion.family();
             column = hbColumnMultiVersion.column();
+            singleVersioned = false;
             multiVersioned = true;
             annotationClass = HBColumnMultiVersion.class;
             codecFlags = toMap(hbColumnMultiVersion.codecFlags());
+        } else {
+            family = null;
+            column = null;
+            singleVersioned = false;
+            multiVersioned = false;
+            annotationClass = null;
+            codecFlags = null;
         }
     }
 
     private Map<String, String> toMap(Flag[] codecFlags) {
-        Map<String, String> flagsMap = new HashMap<>();
+        Map<String, String> flagsMap = new HashMap<>(codecFlags.length, 1.0f);
         for (Flag flag : codecFlags) {
-            flagsMap.put(flag.name(), flag.value());
+            String previousValue = flagsMap.put(flag.name(), flag.value());
+            if (previousValue != null) {
+                throw new DuplicateCodecFlagForColumnException(field.getDeclaringClass(), field.getName(), annotationClass, flag.name());
+            }
         }
         return flagsMap;
     }

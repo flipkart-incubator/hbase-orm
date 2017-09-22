@@ -1,9 +1,6 @@
 package com.flipkart.hbaseobjectmapper.testcases;
 
-import com.flipkart.hbaseobjectmapper.HBColumn;
-import com.flipkart.hbaseobjectmapper.HBColumnMultiVersion;
-import com.flipkart.hbaseobjectmapper.HBObjectMapper;
-import com.flipkart.hbaseobjectmapper.HBRecord;
+import com.flipkart.hbaseobjectmapper.*;
 import com.flipkart.hbaseobjectmapper.exceptions.*;
 import com.flipkart.hbaseobjectmapper.testcases.entities.*;
 import org.apache.hadoop.hbase.client.Put;
@@ -15,6 +12,7 @@ import org.junit.Test;
 import java.io.Serializable;
 import java.util.*;
 
+import static com.flipkart.hbaseobjectmapper.testcases.TestObjects.validObjects;
 import static com.flipkart.hbaseobjectmapper.testcases.util.LiteralsUtil.triplet;
 import static org.junit.Assert.*;
 
@@ -40,14 +38,13 @@ public class TestHBObjectMapper {
     );
 
     final HBObjectMapper hbMapper = new HBObjectMapper();
-    final List<HBRecord> validObjs = TestObjects.validObjects;
 
-    final Result someResult = hbMapper.writeValueAsResult(validObjs.get(0));
-    final Put somePut = hbMapper.writeValueAsPut(validObjs.get(0));
+    final Result someResult = hbMapper.writeValueAsResult(validObjects.get(0));
+    final Put somePut = hbMapper.writeValueAsPut(validObjects.get(0));
 
     @Test
     public void testHBObjectMapper() {
-        for (HBRecord obj : validObjs) {
+        for (HBRecord obj : validObjects) {
             System.out.printf("Original object: %s%n", obj);
             testResult(obj);
             testResultWithRow(obj);
@@ -72,7 +69,7 @@ public class TestHBObjectMapper {
     public <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) {
         long start, end;
         Result result = hbMapper.writeValueAsResult(l(p, p)).get(0);
-        ImmutableBytesWritable rowKey = hbMapper.rowKeyToIbw(p.composeRowKey());
+        ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
         start = System.currentTimeMillis();
         HBRecord pFromResult = hbMapper.readValue(rowKey, result, p.getClass());
         end = System.currentTimeMillis();
@@ -104,7 +101,7 @@ public class TestHBObjectMapper {
     public <R extends Serializable & Comparable<R>> void testPutWithRow(HBRecord<R> p) {
         long start, end;
         Put put = hbMapper.writeValueAsPut(p);
-        ImmutableBytesWritable rowKey = hbMapper.rowKeyToIbw(p.composeRowKey());
+        ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
         start = System.currentTimeMillis();
         HBRecord pFromPut = hbMapper.readValue(rowKey, put, p.getClass());
         end = System.currentTimeMillis();
@@ -114,7 +111,7 @@ public class TestHBObjectMapper {
 
     @Test(expected = RowKeyCouldNotBeParsedException.class)
     public void testInvalidRowKey() {
-        hbMapper.readValue(hbMapper.rowKeyToIbw("invalid row key"), hbMapper.writeValueAsPut(TestObjects.validObjects.get(0)), Citizen.class);
+        hbMapper.readValue(hbMapper.toIbw("invalid row key"), hbMapper.writeValueAsPut(validObjects.get(0)), Citizen.class);
     }
 
     @Test
@@ -226,48 +223,49 @@ public class TestHBObjectMapper {
         assertNull("Null Put object should return null", nullCitizen);
     }
 
+    @HBTable(name = "dummy1")
+    private static class DummyRowKeyClass implements HBRecord<String> {
+        private String rowKey;
+
+        public DummyRowKeyClass(String rowKey) {
+            this.rowKey = rowKey;
+        }
+
+        @Override
+        public String composeRowKey() {
+            return rowKey;
+        }
+
+        @Override
+        public void parseRowKey(String rowKey) {
+            this.rowKey = rowKey;
+        }
+    }
+
+    @HBTable(name = "dummy2")
+    private class RowKeyComposeThrowsExceptionClass implements HBRecord<String> {
+        @Override
+        public String composeRowKey() {
+            throw new RuntimeException("Some blah");
+        }
+
+        @Override
+        public void parseRowKey(String rowKey) {
+
+        }
+    }
+
     @Test
     public void testGetRowKey() {
-        ImmutableBytesWritable rowKey = hbMapper.getRowKey(new HBRecord<String>() {
-            @Override
-            public String composeRowKey() {
-                return "rowkey";
-            }
-
-            @Override
-            public void parseRowKey(String rowKey) {
-
-            }
-        });
-        assertEquals("Row keys don't match", rowKey, hbMapper.rowKeyToIbw("rowkey"));
+        assertEquals("Row keys don't match", hbMapper.getRowKey(new DummyRowKeyClass("rowkey")), hbMapper.toIbw("rowkey"));
         try {
-            hbMapper.getRowKey(new HBRecord<String>() {
-                @Override
-                public String composeRowKey() {
-                    return null;
-                }
-
-                @Override
-                public void parseRowKey(String rowKey) {
-
-                }
-            });
+            hbMapper.getRowKey(new DummyRowKeyClass(null));
             fail("null row key should've thrown a " + RowKeyCantBeEmptyException.class.getName());
         } catch (RowKeyCantBeEmptyException ignored) {
 
         }
         try {
-            hbMapper.getRowKey(new HBRecord<String>() {
-                @Override
-                public String composeRowKey() {
-                    throw new RuntimeException("Some blah");
-                }
-
-                @Override
-                public void parseRowKey(String rowKey) {
-
-                }
-            });
+            hbMapper.getRowKey(new RowKeyComposeThrowsExceptionClass());
             fail("If row key can't be composed, an " + RowKeyCantBeComposedException.class.getName() + " was expected");
         } catch (RowKeyCantBeComposedException ignored) {
 
@@ -275,7 +273,7 @@ public class TestHBObjectMapper {
         try {
             HBRecord<Integer> nullRecord = null;
             hbMapper.getRowKey(nullRecord);
-            fail("If object is null, a " + NullPointerException.class.getName() + " was expected");
+            fail("If object is null, a " + NullPointerException.class.getSimpleName() + " was expected");
         } catch (NullPointerException ignored) {
 
         }

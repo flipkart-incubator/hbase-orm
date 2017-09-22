@@ -5,10 +5,7 @@ import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.exceptions.AllHBColumnFieldsNullException;
 import com.flipkart.hbaseobjectmapper.exceptions.FieldAnnotatedWithHBColumnMultiVersionCantBeEmpty;
 import com.flipkart.hbaseobjectmapper.exceptions.HBRowKeyFieldCantBeNullException;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Contact;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Dependents;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Employee;
+import com.flipkart.hbaseobjectmapper.testcases.entities.*;
 import org.javatuples.Triplet;
 
 import java.math.BigDecimal;
@@ -39,9 +36,14 @@ public class TestObjects {
             new Citizen("IND", 105, "Nilesh", null, null, null, null, null, null, null, null, null, null, new Dependents(null, Arrays.asList(141, 142)), null)
     );
 
-    public static final List<HBRecord> validEmployeeObjectsNoVersion = asList(
+    public static final List<HBRecord> validEmployeeObjects = asList(
             new Employee(1L, "Raja", (short) 0),
             new Employee(2L, "Ramnik", (short) 8)
+    );
+
+    public static final List<HBRecord> validStudentObjects = asList(
+            new Student(1, "Ishan"),
+            new Student(2, "Akshit")
     );
 
     private static List<HBRecord> asList(HBRecord... hbRecords) {
@@ -75,7 +77,8 @@ public class TestObjects {
     public static final List<HBRecord> validObjects = new ArrayList<HBRecord>() {
         {
             addAll(TestObjects.validCitizenObjects);
-            addAll(TestObjects.validEmployeeObjectsNoVersion);
+            addAll(TestObjects.validEmployeeObjects);
+            addAll(TestObjects.validStudentObjects);
         }
     };
 

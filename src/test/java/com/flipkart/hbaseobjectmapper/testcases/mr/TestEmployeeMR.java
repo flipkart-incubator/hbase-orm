@@ -39,20 +39,20 @@ public class TestEmployeeMR extends AbstractMRTest {
 
     @Test
     public void testSingleMapper() throws IOException {
-        Employee employee = (Employee) TestObjects.validEmployeeObjectsNoVersion.get(1);
+        Employee employee = (Employee) TestObjects.validEmployeeObjects.get(1);
         employeeMapDriver
                 .withInput(
                         hbObjectMapper.getRowKey(employee),
                         hbObjectMapper.writeValueAsResult(employee)
 
                 )
-                .withOutput(hbObjectMapper.rowKeyToIbw("key"), new IntWritable(employee.getReporteeCount()))
+                .withOutput(hbObjectMapper.toIbw("key"), new IntWritable(employee.getReporteeCount()))
                 .runTest();
     }
 
     @Test
     public void testMultipleMappers() throws IOException {
-        List<Pair<ImmutableBytesWritable, Result>> hbRecords = MRTestUtil.writeValueAsRowKeyResultPair(TestObjects.validEmployeeObjectsNoVersion);
+        List<Pair<ImmutableBytesWritable, Result>> hbRecords = MRTestUtil.writeValueAsRowKeyResultPair(TestObjects.validEmployeeObjects);
         List<Pair<ImmutableBytesWritable, IntWritable>> mapResults = employeeMapDriver.withAll(hbRecords).run();
         for (Pair<ImmutableBytesWritable, IntWritable> mapResult : mapResults) {
             assertEquals("Rowkey got corrupted in Mapper", Bytes.toString(mapResult.getFirst().get()), "key");
@@ -61,7 +61,7 @@ public class TestEmployeeMR extends AbstractMRTest {
 
     @Test
     public void testReducer() throws Exception {
-        Pair<ImmutableBytesWritable, Mutation> reducerResult = employeeReduceDriver.withInput(hbObjectMapper.rowKeyToIbw("key"), Arrays.asList(new IntWritable(1), new IntWritable(5), new IntWritable(0))).run().get(0);
+        Pair<ImmutableBytesWritable, Mutation> reducerResult = employeeReduceDriver.withInput(hbObjectMapper.toIbw("key"), Arrays.asList(new IntWritable(1), new IntWritable(5), new IntWritable(0))).run().get(0);
         EmployeeSummary employeeSummary = hbObjectMapper.readValue(reducerResult.getFirst(), (Put) reducerResult.getSecond(), EmployeeSummary.class);
         assertEquals("Unexpected result from EmployeeMapper", (Float) 2.0f, employeeSummary.getAverageReporteeCount());
     }

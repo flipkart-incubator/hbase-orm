@@ -3,18 +3,19 @@ package com.flipkart.hbaseobjectmapper;
 import com.flipkart.hbaseobjectmapper.codec.Codec;
 
 import java.io.Serializable;
-import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Type;
 import java.util.Map;
 
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 /**
  * Maps an entity field to an HBase column
  */
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
+@Target(FIELD)
+@Retention(RUNTIME)
 public @interface HBColumn {
 
     /**

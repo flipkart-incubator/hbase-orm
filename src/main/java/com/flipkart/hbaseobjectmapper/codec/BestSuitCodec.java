@@ -25,12 +25,12 @@ import java.util.Map;
  * <p>
  * This codec takes the following {@link Flag Flag}s:
  * <ul>
- * <li><b><code>{@link #SERIALISE_AS_STRING}</code></b>: When passed, it indicates this codec to store field value in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). Note that, this flag applies only to fields of data types in point 1 above.</li>
+ * <li><b><code>{@link #SERIALIZE_AS_STRING}</code></b>: When this flag is "true", it indicates this codec ({@link BestSuitCodec}) to store field/rowkey value in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). This flag applies only to fields or rowkeys of data types in point 1 above.</li>
  * </ul>
  */
 
 public class BestSuitCodec implements Codec {
-    public static final String SERIALISE_AS_STRING = "serializeAsString";
+    public static final String SERIALIZE_AS_STRING = "serializeAsString";
 
     private static final Map<Class, String> fromBytesMethodNames = new HashMap<Class, String>() {
         {
@@ -115,7 +115,7 @@ public class BestSuitCodec implements Codec {
             return null;
         Class clazz = object.getClass();
         if (toBytesMethods.containsKey(clazz)) {
-            boolean serializeAsString = isSerializeAsStringOn(flags);
+            boolean serializeAsString = isSerializeAsStringTrue(flags);
             try {
                 Method toBytesMethod = toBytesMethods.get(clazz);
                 return serializeAsString ? Bytes.toBytes(String.valueOf(object)) : (byte[]) toBytesMethod.invoke(null, object);
@@ -139,17 +139,17 @@ public class BestSuitCodec implements Codec {
         if (bytes == null)
             return null;
         if (type instanceof Class && fromBytesMethods.containsKey(type)) {
-            boolean serializeAsString = isSerializeAsStringOn(flags);
+            boolean serializeAsString = isSerializeAsStringTrue(flags);
             try {
-                Serializable fieldValue;
+                Serializable value;
                 if (serializeAsString) {
                     Constructor constructor = constructors.get(type);
-                    fieldValue = (Serializable) constructor.newInstance(Bytes.toString(bytes));
+                    value = (Serializable) constructor.newInstance(Bytes.toString(bytes));
                 } else {
                     Method method = fromBytesMethods.get(type);
-                    fieldValue = (Serializable) method.invoke(null, new Object[]{bytes});
+                    value = (Serializable) method.invoke(null, new Object[]{bytes});
                 }
-                return fieldValue;
+                return value;
             } catch (Exception e) {
                 throw new DeserializationException("Could not deserialize byte array into an object using HBase's native methods", e);
             }
@@ -174,7 +174,7 @@ public class BestSuitCodec implements Codec {
         return objectMapper.canDeserialize(javaType);
     }
 
-    private boolean isSerializeAsStringOn(Map<String, String> flags) {
-        return flags != null && flags.get(SERIALISE_AS_STRING) != null && flags.get(SERIALISE_AS_STRING).equalsIgnoreCase("true");
+    private static boolean isSerializeAsStringTrue(Map<String, String> flags) {
+        return flags != null && flags.get(SERIALIZE_AS_STRING) != null && flags.get(SERIALIZE_AS_STRING).equalsIgnoreCase("true");
     }
 }

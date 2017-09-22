@@ -38,8 +38,13 @@ public class TestCodecs {
     public void testWithCodec(Codec codec) {
         HBObjectMapper hbObjectMapper = new HBObjectMapper(codec);
         try {
-            for (HBRecord object : TestObjects.validObjects) {
-                Class<? extends HBRecord> objectClass = object.getClass();
+            for (HBRecord record : TestObjects.validObjects) {
+                Class<? extends HBRecord> objectClass = record.getClass();
+                final Serializable rowKey = record.composeRowKey();
+                final Map<String, String> rowKeyCodecFlags = toMap(objectClass.getAnnotation(HBTable.class).rowKeyCodecFlags());
+                byte[] bytes = codec.serialize(rowKey, rowKeyCodecFlags);
+                Serializable deserializedRowKey = codec.deserialize(bytes, rowKey.getClass(), rowKeyCodecFlags);
+                assertEquals(String.format("Row key got corrupted after serialization and deserialization, for this record:\n%s\n", record), rowKey, deserializedRowKey);
                 for (Object re : hbObjectMapper.getHBFields(objectClass).entrySet()) {
                     Map.Entry<String, Field> e = (Map.Entry<String, Field>) re;
                     String fieldName = e.getKey();
@@ -47,15 +52,15 @@ public class TestCodecs {
                     field.setAccessible(true);
                     if (field.isAnnotationPresent(HBColumnMultiVersion.class)) {
                         final Type actualFieldType = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1];
-                        Object fieldValuesMap = field.get(object);
+                        Object fieldValuesMap = field.get(record);
                         if (fieldValuesMap == null)
                             continue;
                         for (NavigableMap.Entry<Long, ?> entry : ((NavigableMap<Long, ?>) fieldValuesMap).entrySet()) {
-                            verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, actualFieldType, (Serializable) entry.getValue(), toMap(field.getAnnotation(HBColumnMultiVersion.class).codecFlags()));
+                            verifyFieldSerDe(codec, objectClass.getSimpleName() + "." + fieldName, actualFieldType, (Serializable) entry.getValue(), toMap(field.getAnnotation(HBColumnMultiVersion.class).codecFlags()));
                         }
                     } else {
-                        Serializable fieldValue = (Serializable) field.get(object);
-                        verifySerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getGenericType(), fieldValue, toMap(field.getAnnotation(HBColumn.class).codecFlags()));
+                        Serializable fieldValue = (Serializable) field.get(record);
+                        verifyFieldSerDe(codec, objectClass.getSimpleName() + "." + fieldName, field.getGenericType(), fieldValue, toMap(field.getAnnotation(HBColumn.class).codecFlags()));
                     }
                 }
             }
@@ -73,6 +78,8 @@ public class TestCodecs {
     }
 
     private Map<String, String> toMap(Flag[] codecFlags) {
+        if (codecFlags == null)
+            return null;
         Map<String, String> flagsMap = new HashMap<>();
         for (Flag flag : codecFlags) {
             flagsMap.put(flag.name(), flag.value());
@@ -81,7 +88,7 @@ public class TestCodecs {
     }
 
 
-    private void verifySerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue, Map<String, String> flags) throws SerializationException, DeserializationException {
+    private void verifyFieldSerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue, Map<String, String> flags) throws SerializationException, DeserializationException {
         byte[] bytes = codec.serialize(fieldValue, flags);
         Serializable deserializedFieldValue = codec.deserialize(bytes, type, flags);
         assertEquals(String.format("Field %s got corrupted after serialization and deserialization of it's value:\n%s\n", fieldFullName, fieldValue), fieldValue, deserializedFieldValue);
@@ -119,9 +126,14 @@ public class TestCodecs {
 
     @Test
     public void testDeserializationFailure() {
-        HBObjectMapper hbObjectMapper = new HBObjectMapper();
+        HBObjectMapper hbObjectMapper = new HBObjectMapper(new BestSuitCodec() {
+
+            @Override
+            public Serializable deserialize(byte[] bytes, Type type, Map<String, String> flags) throws DeserializationException {
+                throw new DeserializationException("Dummy exception", null);
+            }
+        });
         Put put = hbObjectMapper.writeValueAsPut(TestObjects.validObjects.get(0));
-        put.addColumn(Bytes.toBytes("optional"), Bytes.toBytes("age"), new byte[]{0}); // Corrupt serialized data
         try {
             System.out.println(hbObjectMapper.readValue(put, Citizen.class));
             fail("Trying to serialize corrupt data should've thrown " + CodecException.class.getSimpleName());

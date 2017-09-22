@@ -17,6 +17,6 @@ public class CitizenMapper extends TableMapper<ImmutableBytesWritable, IntWritab
         Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
         if (e.getAge() == null)
             return;
-        context.write(hbObjectMapper.rowKeyToIbw("key"), new IntWritable(e.getAge().intValue()));
+        context.write(hbObjectMapper.toIbw("key"), new IntWritable(e.getAge().intValue()));
     }
 }

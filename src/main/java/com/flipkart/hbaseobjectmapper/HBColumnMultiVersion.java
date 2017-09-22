@@ -3,12 +3,13 @@ package com.flipkart.hbaseobjectmapper;
 import com.flipkart.hbaseobjectmapper.codec.Codec;
 
 import java.io.Serializable;
-import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Type;
 import java.util.Map;
+
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Maps an entity field of type <code>NavigableMap&lt;Long, T&gt;</code> to an HBase column whose data type is represented as data type <code>T</code>.
@@ -17,8 +18,8 @@ import java.util.Map;
  * <p>
  * <b>Please note</b>: <code>T</code> must be {@link Serializable}
  */
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
+@Target(FIELD)
+@Retention(RUNTIME)
 public @interface HBColumnMultiVersion {
 
     /**

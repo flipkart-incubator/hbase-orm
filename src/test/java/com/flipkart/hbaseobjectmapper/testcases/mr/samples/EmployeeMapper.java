@@ -16,6 +16,6 @@ public class EmployeeMapper extends TableMapper<ImmutableBytesWritable, IntWrita
     protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException, InterruptedException {
         Employee e = hbObjectMapper.readValue(key, value, Employee.class);
         if (e.getReporteeCount() != null && e.getReporteeCount() > 0)
-            context.write(hbObjectMapper.rowKeyToIbw("key"), new IntWritable(e.getReporteeCount().intValue()));
+            context.write(hbObjectMapper.toIbw("key"), new IntWritable(e.getReporteeCount().intValue()));
     }
 }
