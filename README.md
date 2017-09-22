@@ -137,7 +137,7 @@ citizenMapDriver
 	hbObjectMapper.writeValueAsResult(citizen)
 )
 .withOutput(
-	hbObjectMapper.rowKeyToIbw("key"),
+	hbObjectMapper.toIbw("key"),
 	new IntWritable(citizen.getAge())
 )
 .runTest();
@@ -159,7 +159,7 @@ Below is an example of unit-test of a Reducer using [MRUnit](https://mrunit.apac
 ```java
 Pair<ImmutableBytesWritable, Mutation> reducerResult = citizenReduceDriver
 	.withInput(
-		hbObjectMapper.rowKeyToIbw("key"),
+		hbObjectMapper.toIbw("key"),
 		inputList
 		)
 	.run()
@@ -173,7 +173,7 @@ CitizenSummary citizenSummary = hbObjectMapper.readValue(
 
 Again, see file [TestCitizenMR.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/mr/TestCitizenMR.java) for full sample code.
 
-## HBase Random Access
+## HBase ORM
 This library provides an abstract class to define your own *data access object*. For example you can create a *data access object* for `Citizen` class in the above example as follows:
 
 ```java
@@ -184,7 +184,7 @@ import java.io.IOException;
 public class CitizenDAO extends AbstractHBDAO<String, Citizen> {
 
     public CitizenDAO(Configuration conf) throws IOException {
-        super(conf);
+        super(conf); // if you need to customize your codec, you may use super(conf, codec)
     }
 }
 ```
@@ -229,7 +229,7 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 ```
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/TestsAbstractHBDAO.java) for more detailed examples)
 
-**Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if you do intend to use HBase via ORM, I suggest you use [Apache Phoenix](https://phoenix.apache.org/). 
+**Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if you do intend to use HBase via an ORM library, I suggest you use [Apache Phoenix](https://phoenix.apache.org/).
 
 
 ## Limitations
