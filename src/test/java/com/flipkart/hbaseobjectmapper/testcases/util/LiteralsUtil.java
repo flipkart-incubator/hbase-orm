@@ -4,9 +4,7 @@ import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.google.common.collect.Sets;
 import org.javatuples.Triplet;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class LiteralsUtil {
 
@@ -37,4 +35,15 @@ public class LiteralsUtil {
             }
         };
     }
+
+    @SafeVarargs
+    public static <K, V> NavigableMap<K, V> nm(final Map.Entry<K, V>... entries) {
+        return new TreeMap<K, V>() {
+            {
+                for (final Map.Entry<K, V> entry : entries)
+                    put(entry.getKey(), entry.getValue());
+            }
+        };
+    }
+
 }

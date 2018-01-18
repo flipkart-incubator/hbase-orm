@@ -89,6 +89,7 @@ public class BestSuitCodec implements Codec {
      *
      * @param objectMapper Instance of Jackson's Object Mapper
      */
+    @SuppressWarnings("WeakerAccess")
     public BestSuitCodec(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
@@ -107,8 +108,8 @@ public class BestSuitCodec implements Codec {
     }
 
     /*
-    * @inherit
-    */
+     * @inherit
+     */
     @Override
     public byte[] serialize(Serializable object, Map<String, String> flags) throws SerializationException {
         if (object == null)
@@ -132,8 +133,8 @@ public class BestSuitCodec implements Codec {
     }
 
     /*
-    * @inherit
-    */
+     * @inherit
+     */
     @Override
     public Serializable deserialize(byte[] bytes, Type type, Map<String, String> flags) throws DeserializationException {
         if (bytes == null)
@@ -166,8 +167,8 @@ public class BestSuitCodec implements Codec {
     }
 
     /*
-    * @inherit
-    */
+     * @inherit
+     */
     @Override
     public boolean canDeserialize(Type type) {
         JavaType javaType = objectMapper.constructType(type);

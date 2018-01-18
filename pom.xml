@@ -4,15 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <name>HBase Object Mapper</name>
     <description>
-        A Java-annotation based compact utility library for HBase that helps you:
-        [1] convert objects of your bean-like classes to HBase rows and vice-versa, for use in writing MapReduce jobs
-        for HBase tables and writing high-quality unit test cases
-        [2] define 'Data Access Object' classes for random access of HBase rows
+        A light-weighted HBase ORM library that enables [1] object-oriented access of HBase rows (Data Access Object) [2] reading from and/or writing to HBase tables in Hadoop MapReduce jobs [3] writing high-quality test cases on classes that interact with HBase
     </description>
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.8</version>
+    <version>1.9</version>
     <url>https://flipkart-incubator.github.io/hbase-object-mapper/</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-object-mapper</url>

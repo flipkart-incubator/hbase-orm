@@ -24,8 +24,8 @@ public class JavaObjectStreamCodec implements Codec {
     }
 
     /*
-    * @inherit
-    */
+     * @inherit
+     */
     @Override
     public Serializable deserialize(byte[] bytes, Type type, Map<String, String> flags) throws DeserializationException {
         try {
@@ -38,18 +38,19 @@ public class JavaObjectStreamCodec implements Codec {
     }
 
     /*
-    * @inherit
-    */
+     * @inherit
+     */
     @Override
     public boolean canDeserialize(Type type) {
-        return true; // I'm (may be wrongly) assuming ObjectInputStream and ObjectOutputStream works on all objects
+        return true; // I'm (may be wrongly) assuming ObjectInputStream and ObjectOutputStream work on all objects
     }
 
-    public static Serializable deepCopy(Serializable object) {
+    @SuppressWarnings("unchecked")
+    public static <T extends Serializable> T deepCopy(T object) {
         final JavaObjectStreamCodec codec = new JavaObjectStreamCodec();
         try {
             final byte[] bytes = codec.serialize(object, null);
-            return codec.deserialize(bytes, object.getClass(), null);
+            return (T) codec.deserialize(bytes, object.getClass(), null);
         } catch (Exception e) {
             throw new IllegalStateException("Could not deep copy: " + object, e);
         }

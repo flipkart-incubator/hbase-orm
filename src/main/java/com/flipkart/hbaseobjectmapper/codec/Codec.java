@@ -42,6 +42,7 @@ public interface Codec {
      * @return <code>true</code> (if an object of specified type can be deserialized using this codec) or <code>false</code>
      * @see #deserialize(byte[], Type, Map)
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     boolean canDeserialize(Type type);
 
 }

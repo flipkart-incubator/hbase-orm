@@ -4,8 +4,5 @@ public class MappedColumnCantBePrimitiveException extends IllegalArgumentExcepti
     public MappedColumnCantBePrimitiveException(String s) {
         super(s);
     }
-
-    public MappedColumnCantBePrimitiveException(String s, Throwable throwable) {
-        super(s, throwable);
-    }
+    
 }

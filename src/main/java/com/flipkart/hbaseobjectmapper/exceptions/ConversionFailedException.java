@@ -9,8 +9,5 @@ public class ConversionFailedException extends RuntimeException {
     public ConversionFailedException(String s, Throwable throwable) {
         super(s, throwable);
     }
-
-    public ConversionFailedException(String s) {
-        super(s);
-    }
+    
 }

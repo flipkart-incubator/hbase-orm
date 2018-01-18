@@ -9,7 +9,7 @@ class HBObjectMapperFactory {
     /**
      * Default instance
      */
-    private static HBObjectMapper hbObjectMapper = new HBObjectMapper();
+    private static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 
     static HBObjectMapper construct(Codec codec) {
         return codec == null ? hbObjectMapper : new HBObjectMapper(codec);

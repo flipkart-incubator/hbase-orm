@@ -58,10 +58,6 @@ class WrappedHBTable<R extends Serializable & Comparable<R>, T extends HBRecord<
         return flagsMap;
     }
 
-    int getNumVersions(String familyName) {
-        return families.get(familyName);
-    }
-
     Map<String, Integer> getFamiliesAndVersions() {
         return families;
     }

@@ -1,14 +1,10 @@
 package com.flipkart.hbaseobjectmapper.testcases;
 
-import com.flipkart.hbaseobjectmapper.HBObjectMapper;
 import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.WrappedHBColumnTC;
 import com.flipkart.hbaseobjectmapper.codec.JavaObjectStreamCodec;
 import com.flipkart.hbaseobjectmapper.testcases.daos.*;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Crawl;
-import com.flipkart.hbaseobjectmapper.testcases.entities.CrawlNoVersion;
-import com.flipkart.hbaseobjectmapper.testcases.entities.Employee;
+import com.flipkart.hbaseobjectmapper.testcases.entities.*;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.HBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.InMemoryHBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster;
@@ -28,7 +24,6 @@ import static org.junit.Assert.*;
 public class TestsAbstractHBDAO {
     private static Configuration configuration;
     private static HBaseCluster hBaseCluster;
-    private HBObjectMapper hbMapper = new HBObjectMapper();
 
     @BeforeClass
     public static void setup() {
@@ -47,7 +42,7 @@ public class TestsAbstractHBDAO {
 
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T pruneVersionsBeyond(T record, int versions) {
         try {
-            T prunedRecord = (T) JavaObjectStreamCodec.deepCopy(record);
+            T prunedRecord = JavaObjectStreamCodec.deepCopy(record);
             for (Field field : Citizen.class.getDeclaredFields()) {
                 WrappedHBColumnTC hbColumn = new WrappedHBColumnTC(field);
                 if (hbColumn.isMultiVersioned()) {
@@ -188,6 +183,24 @@ public class TestsAbstractHBDAO {
             citizenDao.delete(new String[]{rowKey3, rowKey4});
             assertNull("Record was not deleted when deleted by 'array of row keys': " + rowKey3, citizenDao.get(rowKey3));
             assertNull("Record was not deleted when deleted by 'array of row keys': " + rowKey4, citizenDao.get(rowKey4));
+        }
+    }
+
+    @Test
+    public void testCustom() throws IOException {
+        hBaseCluster.createTable("counters", m(e("a", 10)));
+        try (
+                CounterDAO counterDAO = new CounterDAO(configuration)
+        ) {
+            Counter counter = new Counter("c1");
+            for (int i = 1; i <= 10; i++) {
+                counter.set((long) i, (long) i);
+            }
+            final String rowKey = counterDAO.persist(counter);
+            assertEquals("Unexpected values on get (number of versions)", counterDAO.get(rowKey, 7), counterDAO.get(counterDAO.getGet(rowKey).setMaxVersions(7)));
+            assertEquals("Unexpected values on get (given timestamp)", nm(e(10L, 10L)), counterDAO.get(counterDAO.getGet(rowKey).setTimeStamp(10)).getValue());
+            assertEquals("Unexpected values on bulk get", Arrays.asList(new Counter("c1", nm(e(1L, 1L), e(2L, 2L), e(3L, 3L), e(4L, 4L))), new Counter("c1", nm(e(3L, 3L), e(4L, 4L)))),
+                    counterDAO.get(Arrays.asList(counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(), counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(2)), true));
         }
     }
 

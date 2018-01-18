@@ -8,7 +8,6 @@ import com.flipkart.hbaseobjectmapper.exceptions.RowKeyCantBeComposedException;
 import com.flipkart.hbaseobjectmapper.testcases.TestObjects;
 import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 
 import java.io.Serializable;

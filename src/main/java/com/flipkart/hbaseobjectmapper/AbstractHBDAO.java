@@ -33,12 +33,9 @@ import java.util.*;
  * @see Table
  * @see HTable
  */
+@SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> implements Closeable {
 
-    /**
-     * Default number of versions to fetch. Change this to {@link Integer#MAX_VALUE} if you want the default behavior to be 'all versions'.
-     */
-    private static final int DEFAULT_NUM_VERSIONS = 1;
     protected final HBObjectMapper hbObjectMapper;
     protected final Connection connection;
     protected final Table table;
@@ -54,7 +51,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * </p>
      *
      * @param configuration Hadoop configuration
-     * @param codec         Your custom codec
+     * @param codec         Your custom codec. If <code>null</code>, default codec is used.
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
@@ -89,13 +86,13 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Get specified number of versions of a row from HBase table by it's row key
      *
-     * @param rowKey   Row key
-     * @param versions Number of versions to be retrieved
+     * @param rowKey             Row key
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
      * @throws IOException When HBase call fails
      */
-    public T get(R rowKey, int versions) throws IOException {
-        Result result = this.table.get(new Get(toBytes(rowKey)).setMaxVersions(versions));
+    public T get(R rowKey, int numVersionsToFetch) throws IOException {
+        Result result = this.table.get(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
         return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
     }
 
@@ -107,22 +104,64 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T get(R rowKey) throws IOException {
-        return get(rowKey, DEFAULT_NUM_VERSIONS);
+        return get(rowKey, 1);
+    }
+
+    /**
+     * Creates an HBase {@link Get} object, for enabling specialised read of HBase rows.
+     * <br><br>
+     * Typically, this is used in {@link #get(Get)} method)
+     *
+     * @param rowKey Row key
+     * @return HBase's Get object
+     * @see #get(Get)
+     */
+    public Get getGet(R rowKey) {
+        return new Get(toBytes(rowKey));
+    }
+
+    /**
+     * Fetch an HBase row for a given {@link Get} object
+     *
+     * @param get HBase's Get object, typically formed using the {@link #getGet(Serializable) getGet} method
+     * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
+     * @throws IOException When HBase call fails
+     */
+    public T get(Get get) throws IOException {
+        Result result = this.table.get(get);
+        return hbObjectMapper.readValue(result, hbRecordClass);
+    }
+
+    /**
+     * @param gets  List of {@link Get} objects for which which rows have to be fetched
+     * @param dummy Dummy parameter, doesn't matter what you pass (If not for this parameter, {@link #get(List)} and this method will have the same type erasure)
+     * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
+     * @throws IOException When HBase call fails
+     * @see <a href="https://stackoverflow.com/questions/1998544/method-has-the-same-erasure-as-another-method-in-type">Type Erasure in situations such as this</a>
+     */
+    @SuppressWarnings("unused")
+    public List<T> get(List<Get> gets, boolean dummy) throws IOException {
+        Result[] results = this.table.get(gets);
+        List<T> records = new ArrayList<>(results.length);
+        for (Result result : results) {
+            records.add(hbObjectMapper.readValue(result, hbRecordClass));
+        }
+        return records;
     }
 
 
     /**
      * Get specified number of versions of rows from HBase table by array of row keys (This method is a bulk variant of {@link #get(Serializable, int)} method)
      *
-     * @param rowKeys  Row keys to fetch
-     * @param versions Number of versions of columns to fetch
+     * @param rowKeys            Row keys to fetch
+     * @param numVersionsToFetch Number of versions of columns to fetch
      * @return Array of HBase rows, deserialized as object of your bean-like class (that implements {@link HBRecord})
      * @throws IOException When HBase call fails
      */
-    public T[] get(R[] rowKeys, int versions) throws IOException {
+    public T[] get(R[] rowKeys, int numVersionsToFetch) throws IOException {
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
-            gets.add(new Get(toBytes(rowKey)).setMaxVersions(versions));
+            gets.add(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
         }
         Result[] results = this.table.get(gets);
         @SuppressWarnings("unchecked") T[] records = (T[]) Array.newInstance(hbRecordClass, rowKeys.length);
@@ -140,21 +179,21 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T[] get(R[] rowKeys) throws IOException {
-        return get(rowKeys, DEFAULT_NUM_VERSIONS);
+        return get(rowKeys, 1);
     }
 
     /**
      * Get specified number of versions of rows from HBase table by list of row keys (This method is a multi-version variant of {@link #get(List)} method)
      *
-     * @param rowKeys  Row keys to fetch
-     * @param versions Number of versions of columns to fetch
+     * @param rowKeys            Row keys to fetch
+     * @param numVersionsToFetch Number of versions of columns to fetch
      * @return Array of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
      */
-    public List<T> get(List<R> rowKeys, int versions) throws IOException {
+    public List<T> get(List<R> rowKeys, int numVersionsToFetch) throws IOException {
         List<Get> gets = new ArrayList<>(rowKeys.size());
         for (R rowKey : rowKeys) {
-            gets.add(new Get(toBytes(rowKey)).setMaxVersions(versions));
+            gets.add(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
         }
         Result[] results = this.table.get(gets);
         List<T> records = new ArrayList<>(rowKeys.size());
@@ -172,20 +211,20 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public List<T> get(List<R> rowKeys) throws IOException {
-        return get(rowKeys, DEFAULT_NUM_VERSIONS);
+        return get(rowKeys, 1);
     }
 
     /**
      * Get specified number of versions of rows from HBase table by a range of row keys (start and end) - this is a multi-version variant of {@link #get(Serializable, Serializable)}
      *
-     * @param startRowKey Row start
-     * @param endRowKey   Row end
-     * @param versions    Number of versions to fetch
+     * @param startRowKey        Row start
+     * @param endRowKey          Row end
+     * @param numVersionsToFetch Number of versions to fetch
      * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
      */
-    public List<T> get(R startRowKey, R endRowKey, int versions) throws IOException {
-        Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey)).setMaxVersions(versions);
+    public List<T> get(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
+        Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey)).setMaxVersions(numVersionsToFetch);
         ResultScanner scanner = table.getScanner(scan);
         List<T> records = new ArrayList<>();
         for (Result result : scanner) {
@@ -203,7 +242,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public List<T> get(R startRowKey, R endRowKey) throws IOException {
-        return get(startRowKey, endRowKey, DEFAULT_NUM_VERSIONS);
+        return get(startRowKey, endRowKey, 1);
     }
 
     /**
@@ -341,7 +380,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         List<Cell> cells = result.getColumnCells(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
         for (Cell cell : cells) {
             Type fieldType = hbObjectMapper.getFieldType(field, hbColumn.isMultiVersioned());
-            final R rowKey = hbObjectMapper.bytesToRowKey(CellUtil.cloneRow(cell), hbTable.getCodecFlags(), (Class<T>) field.getDeclaringClass());
+            @SuppressWarnings("unchecked") final R rowKey = hbObjectMapper.bytesToRowKey(CellUtil.cloneRow(cell), hbTable.getCodecFlags(), (Class<T>) field.getDeclaringClass());
             if (!map.containsKey(rowKey)) {
                 map.put(rowKey, new TreeMap<Long, Object>());
             }
@@ -358,7 +397,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public Object fetchFieldValue(R rowKey, String fieldName) throws IOException {
-        final NavigableMap<Long, Object> fieldValues = fetchFieldValue(rowKey, fieldName, DEFAULT_NUM_VERSIONS);
+        final NavigableMap<Long, Object> fieldValues = fetchFieldValue(rowKey, fieldName, 1);
         if (fieldValues == null || fieldValues.isEmpty()) return null;
         else return fieldValues.lastEntry().getValue();
     }
@@ -367,16 +406,16 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Fetch multiple versions of column values by row key and field name
      *
-     * @param rowKey    Row key to reference HBase row
-     * @param fieldName Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param versions  Number of versions of column to fetch
+     * @param rowKey             Row key to reference HBase row
+     * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
+     * @param numVersionsToFetch Number of versions of column to fetch
      * @return {@link NavigableMap} of timestamps and values of the column (boxed), <code>null</code> if row with given rowKey doesn't exist or such field doesn't exist for the row
      * @throws IOException When HBase call fails
      */
-    public NavigableMap<Long, Object> fetchFieldValue(R rowKey, String fieldName, int versions) throws IOException {
+    public NavigableMap<Long, Object> fetchFieldValue(R rowKey, String fieldName, int numVersionsToFetch) throws IOException {
         @SuppressWarnings("unchecked") R[] array = (R[]) Array.newInstance(rowKeyClass, 1);
         array[0] = rowKey;
-        return fetchFieldValues(array, fieldName, versions).get(rowKey);
+        return fetchFieldValues(array, fieldName, numVersionsToFetch).get(rowKey);
 
     }
 
@@ -390,7 +429,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public Map<R, Object> fetchFieldValues(R startRowKey, R endRowKey, String fieldName) throws IOException {
-        final Map<R, NavigableMap<Long, Object>> multiVersionedMap = fetchFieldValues(startRowKey, endRowKey, fieldName, DEFAULT_NUM_VERSIONS);
+        final Map<R, NavigableMap<Long, Object>> multiVersionedMap = fetchFieldValues(startRowKey, endRowKey, fieldName, 1);
         return toSingleVersioned(multiVersionedMap, 10);
     }
 
@@ -405,20 +444,20 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Fetch specified number of versions of values of an HBase column for a range of row keys (start and end) and field name
      *
-     * @param startRowKey Start row key (scan start)
-     * @param endRowKey   End row key (scan end)
-     * @param fieldName   Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param versions    Number of versions of column to fetch
+     * @param startRowKey        Start row key (scan start)
+     * @param endRowKey          End row key (scan end)
+     * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
+     * @param numVersionsToFetch Number of versions of column to fetch
      * @return Map of row key and column values (versioned)
      * @throws IOException When HBase call fails
      */
-    public NavigableMap<R, NavigableMap<Long, Object>> fetchFieldValues(R startRowKey, R endRowKey, String fieldName, int versions) throws IOException {
+    public NavigableMap<R, NavigableMap<Long, Object>> fetchFieldValues(R startRowKey, R endRowKey, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
         WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         validateFetchInput(field, hbColumn);
         Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey));
         scan.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
-        scan.setMaxVersions(versions);
+        scan.setMaxVersions(numVersionsToFetch);
         ResultScanner scanner = table.getScanner(scan);
         NavigableMap<R, NavigableMap<Long, Object>> map = new TreeMap<>();
         for (Result result : scanner) {
@@ -436,27 +475,27 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException Exception from HBase
      */
     public Map<R, Object> fetchFieldValues(R[] rowKeys, String fieldName) throws IOException {
-        final Map<R, NavigableMap<Long, Object>> multiVersionedMap = fetchFieldValues(rowKeys, fieldName, DEFAULT_NUM_VERSIONS);
+        final Map<R, NavigableMap<Long, Object>> multiVersionedMap = fetchFieldValues(rowKeys, fieldName, 1);
         return toSingleVersioned(multiVersionedMap, rowKeys.length);
     }
 
     /**
      * Fetch specified number of versions of values of an HBase column for an array of row keys
      *
-     * @param rowKeys   Array of row keys to fetch
-     * @param fieldName Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param versions  Number of versions of column to fetch
+     * @param rowKeys            Array of row keys to fetch
+     * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
+     * @param numVersionsToFetch Number of versions of column to fetch
      * @return Map of row key and column values (versioned)
      * @throws IOException When HBase call fails
      */
-    public Map<R, NavigableMap<Long, Object>> fetchFieldValues(R[] rowKeys, String fieldName, int versions) throws IOException {
+    public Map<R, NavigableMap<Long, Object>> fetchFieldValues(R[] rowKeys, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
         WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         validateFetchInput(field, hbColumn);
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
             Get get = new Get(toBytes(rowKey));
-            get.setMaxVersions(versions);
+            get.setMaxVersions(numVersionsToFetch);
             get.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
             gets.add(get);
         }

@@ -1,7 +1,7 @@
 # HBase Object Mapper
 
 ## Introduction
-This compact utility library is an annotation based *object mapper* for HBase (written in Java) that helps you:
+This light-weighted HBase ORM library is an annotation based *object mapper* for HBase that helps you:
 
 * convert objects of your bean-like classes to HBase rows and vice-versa
     * for use in Hadoop MapReduce jobs that read from and/or write to HBase tables
@@ -224,6 +224,10 @@ citizenDao.delete("IND#2"); // Delete a row by it's row key
 
 citizenDao.delete(new String[] {"IND#3", "IND#4"}); // Delete a bunch of rows by their row keys
 
+citizenDao.getGet("IND#2"); // returns object of HBase's Get corresponding to row key "IND#2", to enable advanced read patterns
+
+citizenDao.getGet("IND#2").setTimeRange(1, 5).setMaxVersions(2); // Advanced HBase row fetch
+
 citizenDao.getHBaseTable() // returns HTable instance (in case you want to directly play around) 
 
 ```
@@ -246,7 +250,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.8</version>
+	<version>1.9</version>
 </dependency>
 ```
 See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.flipkart%22%20AND%20a%3A%22hbase-object-mapper%22) or
@@ -255,12 +259,15 @@ See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](ht
 To build this project, follow below steps:
 
  * Do a `git clone` of this repository
- * Checkout latest stable version `git checkout v1.8`
+ * Checkout latest stable version `git checkout v1.9`
  * Execute `mvn clean install` from shell
 
 Currently, projects that use this library are running on [Hortonworks Data Platform v2.4](https://hortonworks.com/blog/apache-hadoop-2-4-0-released/) (corresponds to Hadoop 2.7 and HBase 1.1). However, if you're using a different distribution of Hadoop (like [Cloudera](http://www.cloudera.com/)) or if you are using a different version of Hadoop, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
 
-**Please note**: Test cases are very comprehensive - they even spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). So, build times can sometimes be longer, depending on your machine configuration.
+### Please note
+
+ * Test cases are very comprehensive - they even spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). So, build times can sometimes be longer, depending on your machine configuration.
+ * Test cases check a lot of 'boundary conditions'. So you'll see a lot of stack traces. They are **not** failures.
 
 ## Releases
 
@@ -272,6 +279,6 @@ If you intend to request a feature or report a bug, you may use [Github Issues f
 
 ## License
 
-Copyright 2017 Flipkart Internet Pvt Ltd.
+Copyright 2018 Flipkart Internet Pvt Ltd.
 
 Licensed under the [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or it's source code except in compliance with the License.

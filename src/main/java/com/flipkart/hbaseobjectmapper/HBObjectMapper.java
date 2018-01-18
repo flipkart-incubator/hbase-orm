@@ -185,7 +185,6 @@ public class HBObjectMapper {
     /**
      * Internal note: This should be in sync with {@link #getFieldType(Field, boolean)}
      */
-
     private void validateHBColumnMultiVersionField(Field field) {
         validationHBColumnField(field);
         if (!(field.getGenericType() instanceof ParameterizedType)) {
@@ -615,6 +614,7 @@ public class HBObjectMapper {
         if (rowKey == null || rowKey.toString().isEmpty()) {
             throw new RowKeyCantBeEmptyException();
         }
+        @SuppressWarnings("unchecked")
         WrappedHBTable<R, T> hbTable = new WrappedHBTable<>((Class<T>) record.getClass());
         return valueToByteArray(rowKey, hbTable.getCodecFlags());
     }
