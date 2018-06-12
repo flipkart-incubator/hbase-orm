@@ -6,8 +6,12 @@ import com.flipkart.hbaseobjectmapper.codec.Codec;
  * Maintains one instance of {@link HBObjectMapper} class. For internal use only.
  */
 class HBObjectMapperFactory {
+    private HBObjectMapperFactory() {
+        throw new UnsupportedOperationException();
+    }
+
     /**
-     * Default instance
+     * Default instance of {@link HBObjectMapper}
      */
     private static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 

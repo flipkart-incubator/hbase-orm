@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.hbaseobjectmapper.Flag;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.BadHBaseLibStateException;
+import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Serializable;
@@ -25,36 +28,34 @@ import java.util.Map;
  * <p>
  * This codec takes the following {@link Flag Flag}s:
  * <ul>
- * <li><b><code>{@link #SERIALIZE_AS_STRING}</code></b>: When this flag is "true", it indicates this codec ({@link BestSuitCodec}) to store field/rowkey value in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). This flag applies only to fields or rowkeys of data types in point 1 above.</li>
+ * <li><b><code>{@link #SERIALIZE_AS_STRING}</code></b>: When this flag is "true", this codec stores field/rowkey values in it's string representation (e.g. <b>560034</b> is serialized into a <code>byte[]</code> that represents the string <b>"560034"</b>). This flag applies only to fields or rowkeys of data types in point 1 above.</li>
  * </ul>
+ * <p>
+ * This is the default codec for {@link com.flipkart.hbaseobjectmapper.HBObjectMapper HBObjectMapper}.
  */
 
 public class BestSuitCodec implements Codec {
     public static final String SERIALIZE_AS_STRING = "serializeAsString";
 
-    private static final Map<Class, String> fromBytesMethodNames = new HashMap<Class, String>() {
-        {
-            put(Boolean.class, "toBoolean");
-            put(Short.class, "toShort");
-            put(Integer.class, "toInt");
-            put(Long.class, "toLong");
-            put(Float.class, "toFloat");
-            put(Double.class, "toDouble");
-            put(String.class, "toString");
-            put(BigDecimal.class, "toBigDecimal");
-        }
-    };
+    private static final Map<Class, String> fromBytesMethodNames = ImmutableMap.<Class, String>builder()
+            .put(Boolean.class, "toBoolean")
+            .put(Short.class, "toShort")
+            .put(Integer.class, "toInt")
+            .put(Long.class, "toLong")
+            .put(Float.class, "toFloat")
+            .put(Double.class, "toDouble")
+            .put(String.class, "toString")
+            .put(BigDecimal.class, "toBigDecimal")
+            .build();
 
-    private static final Map<Class, Class> nativeCounterParts = new HashMap<Class, Class>() {
-        {
-            put(Boolean.class, boolean.class);
-            put(Short.class, short.class);
-            put(Long.class, long.class);
-            put(Integer.class, int.class);
-            put(Float.class, float.class);
-            put(Double.class, double.class);
-        }
-    };
+    private static final Map<Class, Class> nativeCounterParts = ImmutableMap.<Class, Class>builder()
+            .put(Boolean.class, boolean.class)
+            .put(Short.class, short.class)
+            .put(Long.class, long.class)
+            .put(Integer.class, int.class)
+            .put(Float.class, float.class)
+            .put(Double.class, double.class)
+            .build();
 
     private static final Map<Class, Method> fromBytesMethods, toBytesMethods;
     private static final Map<Class, Constructor> constructors;
@@ -64,14 +65,12 @@ public class BestSuitCodec implements Codec {
             fromBytesMethods = new HashMap<>(fromBytesMethodNames.size());
             toBytesMethods = new HashMap<>(fromBytesMethodNames.size());
             constructors = new HashMap<>(fromBytesMethodNames.size());
-            Method fromBytesMethod, toBytesMethod;
-            Constructor<?> constructor;
             for (Map.Entry<Class, String> e : fromBytesMethodNames.entrySet()) {
                 Class<?> clazz = e.getKey();
                 String toDataTypeMethodName = e.getValue();
-                fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
-                toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
-                constructor = clazz.getConstructor(String.class);
+                Method fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
+                Method toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
+                Constructor<?> constructor = clazz.getConstructor(String.class);
                 fromBytesMethods.put(clazz, fromBytesMethod);
                 toBytesMethods.put(clazz, toBytesMethod);
                 constructors.put(clazz, constructor);
@@ -160,7 +159,7 @@ public class BestSuitCodec implements Codec {
                 javaType = objectMapper.constructType(type);
                 return objectMapper.readValue(bytes, javaType);
             } catch (Exception e) {
-                throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson\n(Jackson resolved type = %s)", type, javaType), e);
+                throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson%n(Jackson resolved type = %s)", type, javaType), e);
             }
         }
 

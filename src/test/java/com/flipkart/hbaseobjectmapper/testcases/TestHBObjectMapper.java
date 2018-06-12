@@ -16,6 +16,7 @@ import static com.flipkart.hbaseobjectmapper.testcases.TestObjects.validObjects;
 import static com.flipkart.hbaseobjectmapper.testcases.util.LiteralsUtil.triplet;
 import static org.junit.Assert.*;
 
+@SuppressWarnings("unchecked")
 public class TestHBObjectMapper {
     @SuppressWarnings("unchecked")
     private final List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidRecordsAndErrorMessages = Arrays.asList(
@@ -53,20 +54,20 @@ public class TestHBObjectMapper {
         }
     }
 
-    public void testResult(HBRecord p) {
+    private void testResult(HBRecord p) {
         long start, end;
         start = System.currentTimeMillis();
         Result result = hbMapper.writeValueAsResult(p);
         end = System.currentTimeMillis();
-        System.out.printf("Time taken for POJO->Result = %dms%n", end - start);
+        System.out.printf("Time taken for POJO -> Result = %dms%n", end - start);
         start = System.currentTimeMillis();
         HBRecord pFromResult = hbMapper.readValue(result, p.getClass());
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result", p, pFromResult);
-        System.out.printf("Time taken for Result->POJO = %dms%n%n", end - start);
+        System.out.printf("Time taken for Result -> POJO = %dms%n", end - start);
     }
 
-    public <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) {
+    private <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) {
         long start, end;
         Result result = hbMapper.writeValueAsResult(l(p, p)).get(0);
         ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
@@ -74,7 +75,7 @@ public class TestHBObjectMapper {
         HBRecord pFromResult = hbMapper.readValue(rowKey, result, p.getClass());
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result+Row", p, pFromResult);
-        System.out.printf("Time taken for Result+Row->POJO = %dms%n%n", end - start);
+        System.out.printf("Time taken for Rowkey+Result -> POJO = %dms%n", end - start);
     }
 
     @SafeVarargs
@@ -85,20 +86,20 @@ public class TestHBObjectMapper {
 
     }
 
-    public void testPut(HBRecord p) {
+    private void testPut(HBRecord p) {
         long start, end;
         start = System.currentTimeMillis();
         @SuppressWarnings("unchecked") Put put = (Put) hbMapper.writeValueAsPut(l(p, p)).get(0);
         end = System.currentTimeMillis();
-        System.out.printf("Time taken for POJO->Put = %dms%n", end - start);
+        System.out.printf("Time taken for POJO -> Put = %dms%n", end - start);
         start = System.currentTimeMillis();
         HBRecord pFromPut = hbMapper.readValue(put, p.getClass());
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
-        System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
+        System.out.printf("Time taken for Put -> POJO = %dms%n", end - start);
     }
 
-    public <R extends Serializable & Comparable<R>> void testPutWithRow(HBRecord<R> p) {
+    private <R extends Serializable & Comparable<R>> void testPutWithRow(HBRecord<R> p) {
         long start, end;
         Put put = hbMapper.writeValueAsPut(p);
         ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
@@ -106,7 +107,7 @@ public class TestHBObjectMapper {
         HBRecord pFromPut = hbMapper.readValue(rowKey, put, p.getClass());
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
-        System.out.printf("Time taken for Put->POJO = %dms%n%n", end - start);
+        System.out.printf("Time taken for Rowkey+Put -> POJO = %dms%n%n", end - start);
     }
 
     @Test(expected = RowKeyCouldNotBeParsedException.class)
@@ -123,6 +124,7 @@ public class TestHBObjectMapper {
 
     @Test
     public void testInvalidClasses() {
+        final String ERROR_MESSAGE = "Mismatch in type of exception thrown for class ";
         Set<String> exceptionMessages = new HashSet<>();
         for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
             HBRecord record = p.getValue0();
@@ -134,52 +136,46 @@ public class TestHBObjectMapper {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown for class " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgObjToResult = ex.getMessage();
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown for class " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgObjToPut = ex.getMessage();
             }
             try {
                 hbMapper.readValue(someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown for class " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgResultToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(someResult.getRow()), someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown for class " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
             }
             try {
                 hbMapper.readValue(somePut, recordClass);
                 fail(errorMessage + " while converting Put to bean");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown for class " + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
                 exMsgPutToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(somePut.getRow()), somePut, recordClass);
                 fail(errorMessage + " while converting row key and Put combo to bean");
             } catch (IllegalArgumentException ex) {
-                ex.printStackTrace();
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
             }
             assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
             assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
             assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
-            System.out.printf("%s threw below Exception as expected:\n%s\n%n", p.getValue1(), exMsgObjToResult);
+            System.out.printf("[edge case] %s threw below Exception, as expected:%n%s%n%n", p.getValue1(), exMsgObjToResult);
             assertTrue("Same error message for different invalid inputs", exceptionMessages.add(exMsgObjToPut));
         }
     }
@@ -223,9 +219,17 @@ public class TestHBObjectMapper {
         assertNull("Null Put object should return null", nullCitizen);
     }
 
-    @HBTable(name = "dummy1")
-    private static class DummyRowKeyClass implements HBRecord<String> {
+    @HBTable(name = "dummy1", families = {@Family(name = "a")})
+    public static class DummyRowKeyClass implements HBRecord<String> {
+        @HBRowKey
         private String rowKey;
+
+        @HBColumn(family = "a", column = "d")
+        private String dummy;
+
+        public DummyRowKeyClass() {
+
+        }
 
         public DummyRowKeyClass(String rowKey) {
             this.rowKey = rowKey;
@@ -242,8 +246,14 @@ public class TestHBObjectMapper {
         }
     }
 
-    @HBTable(name = "dummy2")
-    private class RowKeyComposeThrowsExceptionClass implements HBRecord<String> {
+    @HBTable(name = "dummy2", families = {@Family(name = "a")})
+    public static class RowKeyComposeThrowsExceptionClass implements HBRecord<String> {
+        @HBRowKey
+        private String rowKey;
+
+        @HBColumn(family = "a", column = "d")
+        private String dummy;
+
         @Override
         public String composeRowKey() {
             throw new RuntimeException("Some blah");

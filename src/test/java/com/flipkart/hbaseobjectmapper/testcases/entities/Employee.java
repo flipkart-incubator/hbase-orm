@@ -1,14 +1,12 @@
 package com.flipkart.hbaseobjectmapper.testcases.entities;
 
 import com.flipkart.hbaseobjectmapper.*;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+
+import java.util.Objects;
 
 @SuppressWarnings("unused")
-@ToString
-@EqualsAndHashCode
 @HBTable(name = "employees", families = {@Family(name = "a")})
-public class Employee implements HBRecord<Long> {
+public class Employee extends AbstractRecord implements HBRecord<Long> {
     @HBRowKey
     private Long empid;
 
@@ -40,9 +38,31 @@ public class Employee implements HBRecord<Long> {
 
     }
 
-    public Employee(Long empid, String empName, Short reporteeCount) {
+    public Employee(Long empid, String empName, Short reporteeCount, Long createdAt) {
         this.empid = empid;
         this.empName = empName;
         this.reporteeCount = reporteeCount;
+        this.createdAt = createdAt;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Employee other = (Employee) o;
+        return Objects.equals(empid, other.empid) &&
+                Objects.equals(empName, other.empName) &&
+                Objects.equals(reporteeCount, other.reporteeCount) &&
+                Objects.equals(createdAt, other.createdAt);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(empid, empName, reporteeCount, createdAt);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Employee{empid=%d, empName='%s', reporteeCount=%s, createdAt=%d}", empid, empName, reporteeCount, createdAt);
     }
 }

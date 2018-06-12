@@ -1,4 +1,6 @@
-package com.flipkart.hbaseobjectmapper.codec;
+package com.flipkart.hbaseobjectmapper.codec.exceptions;
+
+import com.flipkart.hbaseobjectmapper.codec.Codec;
 
 import java.io.IOException;
 

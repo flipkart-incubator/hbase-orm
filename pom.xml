@@ -2,17 +2,20 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <name>HBase Object Mapper</name>
+    <name>HBase ORM</name>
     <description>
-        A light-weighted HBase ORM library that enables [1] object-oriented access of HBase rows (Data Access Object) [2] reading from and/or writing to HBase tables in Hadoop MapReduce jobs [3] writing high-quality test cases on classes that interact with HBase
+        An ultra-light-weight HBase ORM library that enables
+        [1] object-oriented access of HBase rows (Data Access Object)
+        [2] reading from and/or writing to HBase tables in Hadoop MapReduce jobs
+        [3] writing high-quality test cases for classes that interact with HBase
     </description>
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.9</version>
-    <url>https://flipkart-incubator.github.io/hbase-object-mapper/</url>
+    <version>1.10</version>
+    <url>https://flipkart-incubator.github.io/hbase-orm/</url>
     <scm>
-        <url>https://github.com/flipkart-incubator/hbase-object-mapper</url>
+        <url>https://github.com/flipkart-incubator/hbase-orm/</url>
     </scm>
     <licenses>
         <license>

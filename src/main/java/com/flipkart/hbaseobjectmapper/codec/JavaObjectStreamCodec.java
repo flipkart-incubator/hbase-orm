@@ -1,5 +1,8 @@
 package com.flipkart.hbaseobjectmapper.codec;
 
+import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
+
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -33,7 +36,7 @@ public class JavaObjectStreamCodec implements Codec {
             ObjectInputStream ois = new ObjectInputStream(bis);
             return (Serializable) ois.readObject();
         } catch (Exception e) {
-            throw new DeserializationException("Could not deserialize byte stream into an object", e);
+            throw new DeserializationException("Could not deserialize byte array to object", e);
         }
     }
 

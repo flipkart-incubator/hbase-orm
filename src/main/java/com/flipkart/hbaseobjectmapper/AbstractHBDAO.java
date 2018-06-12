@@ -22,16 +22,15 @@ import java.util.*;
  * A <i>Data Access Object</i> class that enables simple random access (read/write) of HBase rows.
  * <p>
  * Please note: This class relies heavily on HBase client library's {@link Table} interface, whose implementations aren't thread-safe. Hence, this class isn't thread-safe.
- * </p>
  * <p>
  * To learn more about thread-safe access to HBase, see conversation here: <a href="https://issues.apache.org/jira/browse/HBASE-17361">HBASE-17361</a>
- * </p>
  *
  * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
  * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
  * @see Connection#getTable(TableName)
  * @see Table
  * @see HTable
+ * @see <a href="https://en.wikipedia.org/wiki/Data_access_object">Data access object</a>
  */
 @SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> implements Closeable {
@@ -48,7 +47,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Constructs a data access object using a custom codec. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
      * <p>
      * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Configuration)}
-     * </p>
      *
      * @param configuration Hadoop configuration
      * @param codec         Your custom codec. If <code>null</code>, default codec is used.
@@ -57,19 +55,37 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration configuration, Codec codec) throws IOException {
+        this(configuration, HBObjectMapperFactory.construct(codec));
+    }
+
+    /**
+     * Constructs a data access object using your custom {@link HBObjectMapper}. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
+     * <p>
+     * <br>
+     * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Configuration)}
+     *
+     * @param configuration  Hadoop configuration
+     * @param hbObjectMapper Your custom {@link HBObjectMapper}
+     * @throws IOException           Exceptions thrown by HBase
+     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractHBDAO(Configuration configuration, HBObjectMapper hbObjectMapper) throws IOException {
+        this.hbObjectMapper = hbObjectMapper;
         hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
         }.getRawType();
+        this.hbObjectMapper.validateHBClass(hbRecordClass);
         rowKeyClass = (Class<R>) new TypeToken<R>(getClass()) {
         }.getRawType();
         if (hbRecordClass == null || rowKeyClass == null) {
             throw new IllegalStateException(String.format("Unable to resolve HBase record/rowkey type (record class is resolving to %s and rowkey class is resolving to %s)", hbRecordClass, rowKeyClass));
         }
-        hbObjectMapper = HBObjectMapperFactory.construct(codec);
         hbTable = new WrappedHBTable<>(hbRecordClass);
         connection = ConnectionFactory.createConnection(configuration);
         table = connection.getTable(hbTable.getName());
-        fields = hbObjectMapper.getHBFields(hbRecordClass);
+        fields = hbObjectMapper.getHBColumnFields0(hbRecordClass);
     }
+
 
     /**
      * Constructs a data access object. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
@@ -80,7 +96,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration configuration) throws IOException {
-        this(configuration, null);
+        this(configuration, (Codec) null);
     }
 
     /**
@@ -110,11 +126,11 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Creates an HBase {@link Get} object, for enabling specialised read of HBase rows.
      * <br><br>
-     * Typically, this is used in {@link #get(Get)} method)
+     * Typically, this is used in {@link #getOnGet(Get)} method
      *
      * @param rowKey Row key
      * @return HBase's Get object
-     * @see #get(Get)
+     * @see #getOnGet(Get)
      */
     public Get getGet(R rowKey) {
         return new Get(toBytes(rowKey));
@@ -127,20 +143,18 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
      * @throws IOException When HBase call fails
      */
-    public T get(Get get) throws IOException {
+    public T getOnGet(Get get) throws IOException {
         Result result = this.table.get(get);
         return hbObjectMapper.readValue(result, hbRecordClass);
     }
 
     /**
-     * @param gets  List of {@link Get} objects for which which rows have to be fetched
-     * @param dummy Dummy parameter, doesn't matter what you pass (If not for this parameter, {@link #get(List)} and this method will have the same type erasure)
+     * @param gets List of {@link Get} objects for which which rows have to be fetched
      * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
-     * @see <a href="https://stackoverflow.com/questions/1998544/method-has-the-same-erasure-as-another-method-in-type">Type Erasure in situations such as this</a>
      */
     @SuppressWarnings("unused")
-    public List<T> get(List<Get> gets, boolean dummy) throws IOException {
+    public List<T> getOnGets(List<Get> gets) throws IOException {
         Result[] results = this.table.get(gets);
         List<T> records = new ArrayList<>(results.length);
         for (Result result : results) {
@@ -265,7 +279,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return Row keys of the persisted objects, represented as a {@link String}
      * @throws IOException When HBase call fails
      */
-    public List<R> persist(List<? extends HBRecord<R>> records) throws IOException {
+    public List<R> persist(List<T> records) throws IOException {
         List<Put> puts = new ArrayList<>(records.size());
         List<R> rowKeys = new ArrayList<>(records.size());
         for (HBRecord<R> object : records) {
@@ -318,7 +332,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @param records Records to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(List<? extends HBRecord<R>> records) throws IOException {
+    public void delete(List<T> records) throws IOException {
         List<Delete> deletes = new ArrayList<>(records.size());
         for (HBRecord<R> record : records) {
             deletes.add(new Delete(toBytes(record.composeRowKey())));
@@ -332,8 +346,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return Name of table read as String
      */
     public String getTableName() {
-        HBTable hbTable = hbRecordClass.getAnnotation(HBTable.class);
-        return hbTable.name();
+        return hbRecordClass.getAnnotation(HBTable.class).name();
     }
 
     /**

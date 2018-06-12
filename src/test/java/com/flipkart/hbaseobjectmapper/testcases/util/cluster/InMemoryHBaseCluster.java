@@ -9,16 +9,24 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import static com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster.USE_REAL_HBASE;
+
 public class InMemoryHBaseCluster implements HBaseCluster {
 
-    private final static long CLUSTER_START_TIMEOUT = 60;
+    private final static long CLUSTER_DEFAULT_TIMEOUT = 60;
+    public static final String INMEMORY_CLUSTER_START_TIMEOUT = "INMEMORY_CLUSTER_START_TIMEOUT";
     private final HBaseTestingUtility utility;
     private final ExecutorService executorService;
-
+    private final long timeout;
 
     public InMemoryHBaseCluster() {
+        this(CLUSTER_DEFAULT_TIMEOUT);
+    }
+
+    public InMemoryHBaseCluster(long timeout) {
         this.utility = new HBaseTestingUtility();
         this.executorService = Executors.newSingleThreadExecutor();
+        this.timeout = timeout;
     }
 
     public Configuration init() throws IOException {
@@ -29,11 +37,17 @@ public class InMemoryHBaseCluster implements HBaseCluster {
                 public MiniHBaseCluster call() throws Exception {
                     return utility.startMiniCluster();
                 }
-            }).get(CLUSTER_START_TIMEOUT, TimeUnit.SECONDS);
+            }).get(timeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            throw new IllegalStateException("Starting an in-memory HBase cluster took much longer than expected (" + CLUSTER_START_TIMEOUT + " seconds). Aborting...", e);
+            throw new IllegalStateException(String.format(
+                    "Starting an 'in-memory HBase cluster' took much longer than expected time of %d seconds. Aborting.%n" +
+                            "You may try the following:%n" +
+                            "[1] Increase timeout by setting the '%s' environmental variable to a value higher than %d%n" +
+                            "[2] Using a machine with better hardware configuration%n" +
+                            "[3] Use a real hbase cluster by setting environmental variable '%s' to 'true'%n" +
+                            "[4] Skip test cases :-)", timeout, INMEMORY_CLUSTER_START_TIMEOUT, timeout, USE_REAL_HBASE), e);
         } catch (Exception e) {
-            throw new IOException("Error starting and in-memory HBase cluster", e);
+            throw new IOException("Error starting an in-memory HBase cluster", e);
         }
         return utility.getConfiguration();
     }

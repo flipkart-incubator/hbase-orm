@@ -9,6 +9,7 @@ import org.apache.hadoop.mrunit.types.Pair;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("unchecked")
 public class MRTestUtil {
     private static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
 

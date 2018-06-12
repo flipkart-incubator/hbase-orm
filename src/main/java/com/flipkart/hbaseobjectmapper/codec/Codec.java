@@ -2,6 +2,8 @@ package com.flipkart.hbaseobjectmapper.codec;
 
 
 import com.flipkart.hbaseobjectmapper.HBObjectMapper;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;

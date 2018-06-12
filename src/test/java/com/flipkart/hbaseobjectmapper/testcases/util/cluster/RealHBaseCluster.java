@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 
 public class RealHBaseCluster implements HBaseCluster {
+    public static final String USE_REAL_HBASE = "USE_REAL_HBASE";
     private Admin admin;
 
     @Override

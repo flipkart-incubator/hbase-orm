@@ -2,7 +2,11 @@ package com.flipkart.hbaseobjectmapper.testcases.codec;
 
 
 import com.flipkart.hbaseobjectmapper.*;
-import com.flipkart.hbaseobjectmapper.codec.*;
+import com.flipkart.hbaseobjectmapper.codec.BestSuitCodec;
+import com.flipkart.hbaseobjectmapper.codec.Codec;
+import com.flipkart.hbaseobjectmapper.codec.JavaObjectStreamCodec;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
+import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.CodecException;
 import com.flipkart.hbaseobjectmapper.exceptions.RowKeyCantBeComposedException;
 import com.flipkart.hbaseobjectmapper.testcases.TestObjects;
@@ -21,6 +25,7 @@ import java.util.NavigableMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("unchecked")
 public class TestCodecs {
 
     @Test
@@ -43,8 +48,8 @@ public class TestCodecs {
                 final Map<String, String> rowKeyCodecFlags = toMap(objectClass.getAnnotation(HBTable.class).rowKeyCodecFlags());
                 byte[] bytes = codec.serialize(rowKey, rowKeyCodecFlags);
                 Serializable deserializedRowKey = codec.deserialize(bytes, rowKey.getClass(), rowKeyCodecFlags);
-                assertEquals(String.format("Row key got corrupted after serialization and deserialization, for this record:\n%s\n", record), rowKey, deserializedRowKey);
-                for (Object re : hbObjectMapper.getHBFields(objectClass).entrySet()) {
+                assertEquals(String.format("Row key got corrupted after serialization and deserialization, for this record:%n%s%n", record), rowKey, deserializedRowKey);
+                for (Object re : hbObjectMapper.getHBColumnFields(objectClass).entrySet()) {
                     Map.Entry<String, Field> e = (Map.Entry<String, Field>) re;
                     String fieldName = e.getKey();
                     Field field = e.getValue();
@@ -90,7 +95,7 @@ public class TestCodecs {
     private void verifyFieldSerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue, Map<String, String> flags) throws SerializationException, DeserializationException {
         byte[] bytes = codec.serialize(fieldValue, flags);
         Serializable deserializedFieldValue = codec.deserialize(bytes, type, flags);
-        assertEquals(String.format("Field %s got corrupted after serialization and deserialization of it's value:\n%s\n", fieldFullName, fieldValue), fieldValue, deserializedFieldValue);
+        assertEquals(String.format("Field %s got corrupted after serialization and deserialization of it's value:%n%s%n", fieldFullName, fieldValue), fieldValue, deserializedFieldValue);
     }
 
     @Test

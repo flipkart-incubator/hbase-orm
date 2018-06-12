@@ -21,6 +21,7 @@ import java.util.*;
 import static com.flipkart.hbaseobjectmapper.testcases.util.LiteralsUtil.*;
 import static org.junit.Assert.*;
 
+@SuppressWarnings("unchecked")
 public class TestsAbstractHBDAO {
     private static Configuration configuration;
     private static HBaseCluster hBaseCluster;
@@ -28,15 +29,22 @@ public class TestsAbstractHBDAO {
     @BeforeClass
     public static void setup() {
         try {
-            String useRegularHBaseClient = System.getenv("USE_REGULAR_HBASE_CLIENT");
-            if (useRegularHBaseClient != null && (useRegularHBaseClient.equals("1") || useRegularHBaseClient.equalsIgnoreCase("true")))
+            String useRealHBase = System.getenv(RealHBaseCluster.USE_REAL_HBASE);
+            if (useRealHBase != null && (useRealHBase.equals("1") || useRealHBase.equalsIgnoreCase("true"))) {
                 hBaseCluster = new RealHBaseCluster();
-            else
-                hBaseCluster = new InMemoryHBaseCluster();
+            } else {
+                String inMemoryHBaseClusterStartTimeout = System.getenv(InMemoryHBaseCluster.INMEMORY_CLUSTER_START_TIMEOUT);
+                if (inMemoryHBaseClusterStartTimeout != null) {
+                    hBaseCluster = new InMemoryHBaseCluster(Long.parseLong(inMemoryHBaseClusterStartTimeout));
+                } else {
+                    hBaseCluster = new InMemoryHBaseCluster();
+                }
+            }
             configuration = hBaseCluster.init();
+        } catch (NumberFormatException e) {
+            fail("The environmental variable " + InMemoryHBaseCluster.INMEMORY_CLUSTER_START_TIMEOUT + " is specified incorrectly (Must be numeric)");
         } catch (Exception e) {
-            e.printStackTrace();
-            fail("Failed to connect to HBase. Aborted execution of DAO-related test cases");
+            fail("Failed to connect to HBase. Aborted execution of DAO-related test cases. Reason:\n" + e.getMessage());
         }
     }
 
@@ -74,10 +82,10 @@ public class TestsAbstractHBDAO {
                 CitizenDAO citizenDao = new CitizenDAO(configuration);
                 CitizenSummaryDAO citizenSummaryDAO = new CitizenSummaryDAO(configuration)
         ) {
-            assertEquals(citizenDao.getTableName(), "citizens");
+            assertEquals("citizens", citizenDao.getTableName());
             final Set<String> columnFamiliesCitizen = citizenDao.getColumnFamiliesAndVersions().keySet(), columnFamiliesCitizenSummary = citizenSummaryDAO.getColumnFamiliesAndVersions().keySet();
             assertEquals("Issue with column families of 'citizens' table\n" + columnFamiliesCitizen, s("main", "optional"), columnFamiliesCitizen);
-            assertEquals(citizenSummaryDAO.getTableName(), "citizens_summary");
+            assertEquals("citizens_summary", citizenSummaryDAO.getTableName());
             assertEquals("Issue with column families of 'citizens_summary' table\n" + columnFamiliesCitizenSummary, s("a"), columnFamiliesCitizenSummary);
             final List<Citizen> records = TestObjects.validCitizenObjects;
             String[] allRowKeys = new String[records.size()];
@@ -197,10 +205,10 @@ public class TestsAbstractHBDAO {
                 counter.set((long) i, (long) i);
             }
             final String rowKey = counterDAO.persist(counter);
-            assertEquals("Unexpected values on get (number of versions)", counterDAO.get(rowKey, 7), counterDAO.get(counterDAO.getGet(rowKey).setMaxVersions(7)));
-            assertEquals("Unexpected values on get (given timestamp)", nm(e(10L, 10L)), counterDAO.get(counterDAO.getGet(rowKey).setTimeStamp(10)).getValue());
+            assertEquals("Unexpected values on get (number of versions)", counterDAO.get(rowKey, 7), counterDAO.getOnGet(counterDAO.getGet(rowKey).setMaxVersions(7)));
+            assertEquals("Unexpected values on get (given timestamp)", nm(e(10L, 10L)), counterDAO.getOnGet(counterDAO.getGet(rowKey).setTimeStamp(10)).getValue());
             assertEquals("Unexpected values on bulk get", Arrays.asList(new Counter("c1", nm(e(1L, 1L), e(2L, 2L), e(3L, 3L), e(4L, 4L))), new Counter("c1", nm(e(3L, 3L), e(4L, 4L)))),
-                    counterDAO.get(Arrays.asList(counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(), counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(2)), true));
+                    counterDAO.getOnGets(Arrays.asList(counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(), counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(2))));
         }
     }
 
@@ -306,7 +314,7 @@ public class TestsAbstractHBDAO {
         try (
                 EmployeeDAO employeeDAO = new EmployeeDAO(configuration)
         ) {
-            Employee ePre = new Employee(100L, "E1", (short) 3);
+            Employee ePre = new Employee(100L, "E1", (short) 3, System.currentTimeMillis());
             Long rowKey = employeeDAO.persist(ePre);
             Employee ePost = employeeDAO.get(rowKey);
             assertEquals("Object got corrupted ", ePre, ePost);

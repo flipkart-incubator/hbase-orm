@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Entities that need to be mapped to HBase tables need to implement this generic interface
  *
- * @param <R> Data type for row key. This type must be '{@link Comparable} to itself' and {@link Serializable} (e.g. {@link String}, {@link Integer} etc.).
+ * @param <R> Data type for row key. This type must be '{@link Comparable} with itself' and {@link Serializable} (e.g. {@link String}, {@link Integer} etc. or your own custom class).
  */
 public interface HBRecord<R extends Serializable & Comparable<R>> extends Serializable {
 
