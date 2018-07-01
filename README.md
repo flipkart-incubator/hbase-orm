@@ -74,7 +74,7 @@ See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/t
 
 * The default codec of this library has the following behavior:
     * uses HBase's native methods to serialize objects of data types `Boolean`, `Short`, `Integer`, `Long`, `Float`, `Double`, `String` and `BigDecimal`
-    * uses [Jackson's JSON serializer](http://wiki.fasterxml.com/JacksonHome) for all other data types
+    * uses [Jackson's JSON serializer](https://en.wikipedia.org/wiki/Jackson_(API)) for all other data types
     * serializes `null` as `null`
 * To customize serialization/deserialization behavior, you may define your own codec (by implementing the [Codec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/Codec.java) interface) or you may extend the default codec ([BestSuitCodec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/BestSuitCodec.java)).
 * The optional parameter `codecFlag` (supported by both `@HBColumn` and `@HBColumnMultiVersion` annotations) can be used to pass custom flags to the underlying codec. (e.g. You may write your codec to serialize field `Integer id` in `Citizen` class differently from field `Integer id` in `Employee` class)
@@ -240,8 +240,8 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 ## Limitations
 
 * Being an *object mapper*, this library works for pre-defined columns only. For example, this library doesn't provide ways to fetch:
- * columns matching a pattern or a regular expression
- * unmapped columns of a column family
+    * columns matching a pattern or a regular expression
+    * unmapped columns of a column family
 * This library doesn't provide you a way to 'selectively fetch and populate fields of your bean-like class' when you `get` a row by it's key. (However, you can still fetch column values selectively for one or more rows by using `fetchFieldValue` and `fetchFieldValues` methods)
 
 ## Maven
@@ -268,9 +268,9 @@ To build this project, follow below simple steps:
  * Currently, projects that use this library are running on [Hortonworks Data Platform v2.4](https://hortonworks.com/blog/apache-hadoop-2-4-0-released/) (corresponds to Hadoop 2.7 and HBase 1.1). However, if you're using a different distribution of Hadoop (like [Cloudera](http://www.cloudera.com/)) or if you are using a different version of Hadoop, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
  * Test cases are very comprehensive. So, `mvn` build times can sometimes be longer, depending on your machine configuration.
  * By default, test cases spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). 
-  * If test cases are failing with time out errors, you may increase the timeout by setting environment variable `INMEMORY_CLUSTER_START_TIMEOUT` (seconds). For example, on Linux you may run the command `INMEMORY_CLUSTER_START_TIMEOUT=8` on terminal, before running the aforementioned `mvn` command.
+    * If test cases are failing with time out errors, you may increase the timeout by setting environment variable `INMEMORY_CLUSTER_START_TIMEOUT` (seconds). For example, on Linux you may run the command `INMEMORY_CLUSTER_START_TIMEOUT=8` on terminal, before running the aforementioned `mvn` command.
  * You may direct test cases to use an actual HBase cluster (instead of default in-memory one) by setting `USE_REAL_HBASE` environmental variable to `true`.
-  * If you're using this option, ensure you've correct settings in your `hbase-site.xml`.
+    * If you're using this option, ensure you've correct settings in your `hbase-site.xml`.
  * Test cases check for a lot of 'boundary conditions'. So, you'll see a lot of exceptions in logs. They are **not** failures.
 
 ## Releases
