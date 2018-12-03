@@ -15,6 +15,12 @@ public class Counter implements HBRecord<String> {
     @HBRowKey
     private String key;
 
+    @HBColumn(family = "a", column = "var")
+    private Long var;
+
+    @HBColumn(family = "a", column = "badvarI")
+    public Integer badvarI = 2000;
+
     @HBColumnMultiVersion(family = "a", column = "value")
     private NavigableMap<Long, Long> value;
 
@@ -32,10 +38,6 @@ public class Counter implements HBRecord<String> {
         value = new TreeMap<>();
     }
 
-    public NavigableMap<Long, Long> getValue() {
-        return value;
-    }
-
     public Counter(String key) {
         this();
         this.key = key;
@@ -46,8 +48,19 @@ public class Counter implements HBRecord<String> {
         this.value = value;
     }
 
+    public Long getVar() {
+        return var;
+    }
 
-    public void set(Long timestamp, Long value) {
+    public void setVar(Long var) {
+        this.var = var;
+    }
+
+    public NavigableMap<Long, Long> getValue() {
+        return value;
+    }
+
+    public void setValue(Long timestamp, Long value) {
         this.value.put(timestamp, value);
     }
 }

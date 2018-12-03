@@ -9,6 +9,13 @@ import com.flipkart.hbaseobjectmapper.testcases.util.cluster.HBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.InMemoryHBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Durability;
+import org.apache.hadoop.hbase.client.Increment;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,6 +36,7 @@ public class TestsAbstractHBDAO {
     @BeforeClass
     public static void setup() {
         try {
+            Logger.getRootLogger().setLevel(Level.WARN);
             String useRealHBase = System.getenv(RealHBaseCluster.USE_REAL_HBASE);
             if (useRealHBase != null && (useRealHBase.equals("1") || useRealHBase.equalsIgnoreCase("true"))) {
                 hBaseCluster = new RealHBaseCluster();
@@ -197,18 +205,35 @@ public class TestsAbstractHBDAO {
     @Test
     public void testCustom() throws IOException {
         hBaseCluster.createTable("counters", m(e("a", 10)));
+        Connection connection = ConnectionFactory.createConnection(configuration);
         try (
-                CounterDAO counterDAO = new CounterDAO(configuration)
+                CounterDAO counterDAO = new CounterDAO(connection)
         ) {
             Counter counter = new Counter("c1");
             for (int i = 1; i <= 10; i++) {
-                counter.set((long) i, (long) i);
+                counter.setValue((long) i, (long) i);
             }
+            counter.setVar(0L);
             final String rowKey = counterDAO.persist(counter);
+            // Test custom timestamp values:
             assertEquals("Unexpected values on get (number of versions)", counterDAO.get(rowKey, 7), counterDAO.getOnGet(counterDAO.getGet(rowKey).setMaxVersions(7)));
             assertEquals("Unexpected values on get (given timestamp)", nm(e(10L, 10L)), counterDAO.getOnGet(counterDAO.getGet(rowKey).setTimeStamp(10)).getValue());
             assertEquals("Unexpected values on bulk get", Arrays.asList(new Counter("c1", nm(e(1L, 1L), e(2L, 2L), e(3L, 3L), e(4L, 4L))), new Counter("c1", nm(e(3L, 3L), e(4L, 4L)))),
                     counterDAO.getOnGets(Arrays.asList(counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(), counterDAO.getGet(rowKey).setTimeRange(1, 5).setMaxVersions(2))));
+            // Test increment features:
+            long resultBasic = counterDAO.increment(rowKey, "var", 1L);
+            assertTrue("Increment didn't apply - basic", 1L == (long) counterDAO.fetchFieldValue(rowKey, "var") && 1L == resultBasic);
+            long resultDurability = counterDAO.increment(rowKey, "var", 2L, Durability.SKIP_WAL);
+            assertTrue("Increment didn't apply - with durability flag", 3L == (long) counterDAO.fetchFieldValue(rowKey, "var") && 3L == resultDurability);
+            Increment increment = counterDAO.getIncrement(rowKey).addColumn(Bytes.toBytes("a"), Bytes.toBytes("var"), 5L);
+            Counter persistedCounter = counterDAO.increment(increment);
+            assertTrue("Increment didn't apply - native way", 8L == persistedCounter.getVar() && 8L == (long) counterDAO.fetchFieldValue(rowKey, "var"));
+            try {
+                counterDAO.increment(rowKey, "badvarI", 4L);
+                fail("Attempt to increment a field that isn't Long succeeded (it shouldn't have)");
+            } catch (Exception ignored) {
+
+            }
         }
     }
 

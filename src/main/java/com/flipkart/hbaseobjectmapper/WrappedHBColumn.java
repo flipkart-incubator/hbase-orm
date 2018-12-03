@@ -3,6 +3,8 @@ package com.flipkart.hbaseobjectmapper;
 
 import com.flipkart.hbaseobjectmapper.exceptions.BothHBColumnAnnotationsPresentException;
 import com.flipkart.hbaseobjectmapper.exceptions.DuplicateCodecFlagForColumnException;
+import com.flipkart.hbaseobjectmapper.exceptions.FieldNotMappedToHBaseColumnException;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -20,6 +22,11 @@ class WrappedHBColumn {
     private final Field field;
 
     WrappedHBColumn(Field field) {
+        this(field, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    WrappedHBColumn(Field field, boolean throwExceptionIfNonHBColumn) {
         this.field = field;
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);
         HBColumnMultiVersion hbColumnMultiVersion = field.getAnnotation(HBColumnMultiVersion.class);
@@ -41,6 +48,9 @@ class WrappedHBColumn {
             annotationClass = HBColumnMultiVersion.class;
             codecFlags = toMap(hbColumnMultiVersion.codecFlags());
         } else {
+            if (throwExceptionIfNonHBColumn) {
+                throw new FieldNotMappedToHBaseColumnException((Class<HBRecord>) field.getDeclaringClass(), field.getName());
+            }
             family = null;
             column = null;
             singleVersioned = false;
@@ -65,8 +75,16 @@ class WrappedHBColumn {
         return family;
     }
 
+    public byte[] familyBytes() {
+        return Bytes.toBytes(family);
+    }
+
     public String column() {
         return column;
+    }
+
+    public byte[] columnBytes() {
+        return Bytes.toBytes(column);
     }
 
     public Map<String, String> codecFlags() {

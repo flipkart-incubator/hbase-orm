@@ -97,10 +97,10 @@ public class HBObjectMapper {
         }
         for (Field field : fields) {
             WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-            NavigableMap<byte[], NavigableMap<Long, byte[]>> familyMap = map.get(Bytes.toBytes(hbColumn.family()));
+            NavigableMap<byte[], NavigableMap<Long, byte[]>> familyMap = map.get(hbColumn.familyBytes());
             if (familyMap == null || familyMap.isEmpty())
                 continue;
-            NavigableMap<Long, byte[]> columnVersionsMap = familyMap.get(Bytes.toBytes(hbColumn.column()));
+            NavigableMap<Long, byte[]> columnVersionsMap = familyMap.get(hbColumn.columnBytes());
             if (hbColumn.isSingleVersioned()) {
                 if (columnVersionsMap == null || columnVersionsMap.isEmpty())
                     continue;
@@ -256,7 +256,7 @@ public class HBObjectMapper {
         for (Field field : fields) {
             WrappedHBColumn hbColumn = new WrappedHBColumn(field);
             if (hbColumn.isSingleVersioned()) {
-                byte[] familyName = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
+                byte[] familyName = hbColumn.familyBytes(), columnName = hbColumn.columnBytes();
                 if (!map.containsKey(familyName)) {
                     map.put(familyName, new TreeMap<byte[], NavigableMap<Long, byte[]>>(Bytes.BYTES_COMPARATOR));
                 }
@@ -273,7 +273,7 @@ public class HBObjectMapper {
                 NavigableMap<Long, byte[]> fieldValueVersions = getFieldValuesAsNavigableMapOfBytes(record, field, hbColumn.codecFlags());
                 if (fieldValueVersions == null)
                     continue;
-                byte[] familyName = Bytes.toBytes(hbColumn.family()), columnName = Bytes.toBytes(hbColumn.column());
+                byte[] familyName = hbColumn.familyBytes(), columnName = hbColumn.columnBytes();
                 if (!map.containsKey(familyName)) {
                     map.put(familyName, new TreeMap<byte[], NavigableMap<Long, byte[]>>(Bytes.BYTES_COMPARATOR));
                 }

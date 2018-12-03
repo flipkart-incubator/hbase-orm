@@ -1,14 +1,12 @@
 package com.flipkart.hbaseobjectmapper;
 
 import com.flipkart.hbaseobjectmapper.codec.Codec;
-import com.flipkart.hbaseobjectmapper.exceptions.FieldNotMappedToHBaseColumnException;
 import com.google.common.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -27,16 +25,15 @@ import java.util.*;
  *
  * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
  * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
+ * @see <a href="https://en.wikipedia.org/wiki/Data_access_object">Data access object</a>
  * @see Connection#getTable(TableName)
  * @see Table
  * @see HTable
- * @see <a href="https://en.wikipedia.org/wiki/Data_access_object">Data access object</a>
  */
 @SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> implements Closeable {
 
     protected final HBObjectMapper hbObjectMapper;
-    protected final Connection connection;
     protected final Table table;
     protected final Class<R> rowKeyClass;
     protected final Class<T> hbRecordClass;
@@ -44,33 +41,18 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     private final Map<String, Field> fields;
 
     /**
-     * Constructs a data access object using a custom codec. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
-     * <p>
-     * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Configuration)}
-     *
-     * @param configuration Hadoop configuration
-     * @param codec         Your custom codec. If <code>null</code>, default codec is used.
-     * @throws IOException           Exceptions thrown by HBase
-     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
-     */
-    @SuppressWarnings("unchecked")
-    protected AbstractHBDAO(Configuration configuration, Codec codec) throws IOException {
-        this(configuration, HBObjectMapperFactory.construct(codec));
-    }
-
-    /**
-     * Constructs a data access object using your custom {@link HBObjectMapper}. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
+     * Constructs a data access object using your custom {@link HBObjectMapper}
      * <p>
      * <br>
      * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Configuration)}
      *
-     * @param configuration  Hadoop configuration
+     * @param connection     HBase Connection
      * @param hbObjectMapper Your custom {@link HBObjectMapper}
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
     @SuppressWarnings("unchecked")
-    protected AbstractHBDAO(Configuration configuration, HBObjectMapper hbObjectMapper) throws IOException {
+    protected AbstractHBDAO(Connection connection, HBObjectMapper hbObjectMapper) throws IOException {
         this.hbObjectMapper = hbObjectMapper;
         hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
         }.getRawType();
@@ -81,14 +63,71 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             throw new IllegalStateException(String.format("Unable to resolve HBase record/rowkey type (record class is resolving to %s and rowkey class is resolving to %s)", hbRecordClass, rowKeyClass));
         }
         hbTable = new WrappedHBTable<>(hbRecordClass);
-        connection = ConnectionFactory.createConnection(configuration);
         table = connection.getTable(hbTable.getName());
         fields = hbObjectMapper.getHBColumnFields0(hbRecordClass);
     }
 
 
     /**
-     * Constructs a data access object. Classes extending this class <strong>must</strong> call this constructor using <code>super</code>.
+     * Constructs a data access object using your custom {@link HBObjectMapper}
+     * <p>
+     * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Configuration)}
+     *
+     * @param configuration  Hadoop configuration
+     * @param hbObjectMapper Your custom {@link HBObjectMapper}
+     * @throws IOException           Exceptions thrown by HBase
+     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractHBDAO(Configuration configuration, HBObjectMapper hbObjectMapper) throws IOException {
+        this(ConnectionFactory.createConnection(configuration), hbObjectMapper);
+    }
+
+
+    /**
+     * Constructs a data access object using your custom codec
+     * <p>
+     * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Connection)}
+     *
+     * @param connection HBase Connection
+     * @param codec      Your custom codec. If <code>null</code>, default codec is used.
+     * @throws IOException           Exceptions thrown by HBase
+     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractHBDAO(Connection connection, Codec codec) throws IOException {
+        this(connection, HBObjectMapperFactory.construct(codec));
+    }
+
+    /**
+     * Constructs a data access object using your custom codec
+     * <p>
+     * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Configuration)}
+     *
+     * @param configuration Hadoop configuration
+     * @param codec         Your custom codec. If <code>null</code>, default codec is used.
+     * @throws IOException           Exceptions thrown by HBase
+     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractHBDAO(Configuration configuration, Codec codec) throws IOException {
+        this(ConnectionFactory.createConnection(configuration), HBObjectMapperFactory.construct(codec));
+    }
+
+    /**
+     * Constructs a data access object
+     *
+     * @param connection HBase Connection
+     * @throws IOException           Exceptions thrown by HBase
+     * @throws IllegalStateException Annotation(s) on base entity may be incorrect
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractHBDAO(Connection connection) throws IOException {
+        this(connection, (Codec) null);
+    }
+
+    /**
+     * Constructs a data access object
      *
      * @param configuration Hadoop configuration
      * @throws IOException           Exceptions thrown by HBase
@@ -247,6 +286,70 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         return records;
     }
 
+    private WrappedHBColumn validateAndGetLongColumn(String fieldName) {
+        Field field = getField(fieldName);
+        if (!Long.class.equals(field.getType())) {
+            throw new IllegalArgumentException(String.format("Invalid attempt to increment a non-Long field (%s.%s)", hbRecordClass.getName(), fieldName));
+        }
+        return new WrappedHBColumn(field, true);
+    }
+
+    /**
+     * Increments field by specified amount
+     *
+     * @param rowKey    Row key of the record whose column needs to be incremented
+     * @param fieldName Field that needs to be incremented (this must be of {@link Long} type)
+     * @param amount    Amount by which the HBase column needs to be incremented
+     * @return The new value, post increment
+     * @throws IOException When HBase call fails
+     */
+    public long increment(R rowKey, String fieldName, long amount) throws IOException {
+        WrappedHBColumn hbColumn = validateAndGetLongColumn(fieldName);
+        return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount);
+    }
+
+    /**
+     * Increments field by specified amount
+     *
+     * @param rowKey     Row key of the record whose column needs to be incremented
+     * @param fieldName Field that needs to be incremented (this must be of {@link Long} type)
+     * @param amount     Amount by which the HBase column needs to be incremented
+     * @param durability The persistence guarantee for this increment (see {@link Durability})
+     * @return The new value, post increment
+     * @throws IOException When HBase call fails
+     */
+    public long increment(R rowKey, String fieldName, long amount, Durability durability) throws IOException {
+        WrappedHBColumn hbColumn = validateAndGetLongColumn(fieldName);
+        return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount, durability);
+    }
+
+    /**
+     * Gets (native) {@link Increment} object for given row key, to be later used in {@link #increment(Increment)} method.
+     *
+     * @param rowKey HBase row key
+     * @return Increment object
+     */
+    public Increment getIncrement(R rowKey) {
+        return new Increment(toBytes(rowKey));
+    }
+
+    /**
+     * Performs HBase {@link Table#increment} on the given {@link Increment} object <br>
+     * <br>
+     * <b>Note</b>: <ul>
+     *     <li>You may construct {@link Increment} object using the {@link #getIncrement(Serializable) getIncrement} method</li>
+     *     <li>Unlike the {@link #increment(Serializable, String, long)} methods, this method skips some validations (hence, be cautious)</li>
+     *     </ul>
+     *
+     * @param increment HBase Increment object
+     * @return <b>Partial object</b> containing (only) values that were incremented
+     * @throws IOException When HBase call fails
+     */
+    public T increment(Increment increment) throws IOException {
+        Result result = table.increment(increment);
+        return hbObjectMapper.readValue(result, hbRecordClass);
+    }
+
     /**
      * Get specified number of versions of rows from HBase table by a range of row keys (start to end)
      *
@@ -389,8 +492,8 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         if (result.isEmpty()) {
             return;
         }
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-        List<Cell> cells = result.getColumnCells(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
+        List<Cell> cells = result.getColumnCells(hbColumn.familyBytes(), hbColumn.columnBytes());
         for (Cell cell : cells) {
             Type fieldType = hbObjectMapper.getFieldType(field, hbColumn.isMultiVersioned());
             @SuppressWarnings("unchecked") final R rowKey = hbObjectMapper.bytesToRowKey(CellUtil.cloneRow(cell), hbTable.getCodecFlags(), (Class<T>) field.getDeclaringClass());
@@ -466,10 +569,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public NavigableMap<R, NavigableMap<Long, Object>> fetchFieldValues(R startRowKey, R endRowKey, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-        validateFetchInput(field, hbColumn);
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
         Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey));
-        scan.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
+        scan.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
         scan.setMaxVersions(numVersionsToFetch);
         ResultScanner scanner = table.getScanner(scan);
         NavigableMap<R, NavigableMap<Long, Object>> map = new TreeMap<>();
@@ -503,13 +605,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public Map<R, NavigableMap<Long, Object>> fetchFieldValues(R[] rowKeys, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
-        validateFetchInput(field, hbColumn);
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
             Get get = new Get(toBytes(rowKey));
             get.setMaxVersions(numVersionsToFetch);
-            get.addColumn(Bytes.toBytes(hbColumn.family()), Bytes.toBytes(hbColumn.column()));
+            get.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
             gets.add(get);
         }
         Result[] results = this.table.get(gets);
@@ -522,12 +623,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
 
     private byte[] toBytes(R rowKey) {
         return hbObjectMapper.rowKeyToBytes(rowKey, hbTable.getCodecFlags());
-    }
-
-    private void validateFetchInput(Field field, WrappedHBColumn hbColumn) {
-        if (!hbColumn.isPresent()) {
-            throw new FieldNotMappedToHBaseColumnException(hbRecordClass, field.getName());
-        }
     }
 
     @Override

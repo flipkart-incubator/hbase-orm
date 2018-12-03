@@ -31,6 +31,9 @@ public class Citizen implements HBRecord<String> {
     
     @HBColumn(family = "optional", column = "salary")
     private Integer sal;
+
+    @HBColumn(family = "optional", column = "counter")
+    private Long counter;
     
     @HBColumn(family = "optional", column = "custom_details")
     private Map<String, Integer> customDetails;
@@ -195,7 +198,10 @@ Once defined, you can access, manipulate and persist a row of `citizens` HBase t
 Configuration configuration = getConf(); // this is org.apache.hadoop.conf.Configuration
 
 // Create a data access object:
-CitizenDAO citizenDao = new CitizenDAO(configuration);
+CitizenDAO citizenDao = new CitizenDAO(configuration); // alternatively, you can pass HBase client's Connection to your constructor
+
+// Create new record:
+String rowKey = citizenDao.persist(new Citizen("IND", 1, /* more params */)); // Here, output of 'persist' is a String, because Citizen class implements HBRecord<String>
 
 // Fetch a row from "citizens" HBase table with row key "IND#1":
 Citizen pe = citizenDao.get("IND#1");
@@ -229,6 +235,8 @@ counterDAO.getOnGets(get1);
 Get get2 = citizenDao.getGet("IND#2").setTimeRange(1, 5).setMaxVersions(2); // Advanced HBase row fetch
 counterDAO.getOnGets(get2); 
 
+citizenDao.increment("IND#2", "counter", 3L); // Increment value of counter by 3
+
 citizenDao.getHBaseTable() // returns HTable instance (in case you want to directly play around) 
 
 ```
@@ -251,7 +259,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
 	<groupId>com.flipkart</groupId>
 	<artifactId>hbase-object-mapper</artifactId>
-	<version>1.10</version>
+	<version>1.11</version>
 </dependency>
 ```
 See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.flipkart%22%20AND%20a%3A%22hbase-object-mapper%22) or
@@ -260,7 +268,7 @@ See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](ht
 To build this project, follow below simple steps:
 
  1. Do a `git clone` of this repository
- 2. Checkout latest stable version `git checkout v1.10`
+ 2. Checkout latest stable version `git checkout v1.11`
  3. Execute `mvn clean install` from shell
 
 ### Please note:
