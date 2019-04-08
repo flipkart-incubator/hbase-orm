@@ -5,12 +5,10 @@ import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.flipkart.hbaseobjectmapper.exceptions.AllHBColumnFieldsNullException;
 import com.flipkart.hbaseobjectmapper.exceptions.FieldAnnotatedWithHBColumnMultiVersionCantBeEmpty;
 import com.flipkart.hbaseobjectmapper.testcases.entities.*;
-import org.javatuples.Triplet;
+import org.apache.hadoop.hbase.util.Triple;
 
 import java.math.BigDecimal;
 import java.util.*;
-
-import static com.flipkart.hbaseobjectmapper.testcases.util.LiteralsUtil.triplet;
 
 public class TestObjects {
     public static final List<Citizen> validCitizenObjectsNoVersion = Arrays.asList(
@@ -82,8 +80,8 @@ public class TestObjects {
     };
 
     @SuppressWarnings("unchecked")
-    public static final List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidObjects = Arrays.asList(
-            triplet(new Citizen("IND", -1, null, null, null, null, null, null, null, null, null, null, null, null, null), "all fields empty", AllHBColumnFieldsNullException.class),
-            triplet(new Citizen("IND", 1, "row key", null, null, null, null, null, null, null, null, new TreeMap<Long, Integer>(), null, null, null), "an empty field annotated with @" + HBColumnMultiVersion.class.getName(), FieldAnnotatedWithHBColumnMultiVersionCantBeEmpty.class)
+    public static final List<Triple<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidObjects = Arrays.asList(
+            Triple.create(new Citizen("IND", -1, null, null, null, null, null, null, null, null, null, null, null, null, null), "all fields empty", AllHBColumnFieldsNullException.class),
+            Triple.create(new Citizen("IND", 1, "row key", null, null, null, null, null, null, null, null, new TreeMap<Long, Integer>(), null, null, null), "an empty field annotated with @" + HBColumnMultiVersion.class.getName(), FieldAnnotatedWithHBColumnMultiVersionCantBeEmpty.class)
     );
 }

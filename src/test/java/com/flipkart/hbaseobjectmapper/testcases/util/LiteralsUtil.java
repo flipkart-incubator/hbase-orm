@@ -1,16 +1,10 @@
 package com.flipkart.hbaseobjectmapper.testcases.util;
 
-import com.flipkart.hbaseobjectmapper.HBRecord;
 import com.google.common.collect.Sets;
-import org.javatuples.Triplet;
 
 import java.util.*;
 
 public class LiteralsUtil {
-
-    public static Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> triplet(HBRecord record, String classDescription, Class<? extends IllegalArgumentException> clazz) {
-        return new Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>(record, classDescription, clazz);
-    }
 
     @SafeVarargs
     public static <T> T[] a(T... a) {

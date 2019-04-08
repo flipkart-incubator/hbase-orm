@@ -147,7 +147,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T get(R rowKey, int numVersionsToFetch) throws IOException {
-        Result result = this.table.get(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
+        Result result = this.table.get(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
         return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
     }
 
@@ -214,7 +214,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public T[] get(R[] rowKeys, int numVersionsToFetch) throws IOException {
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
-            gets.add(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
+            gets.add(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
         }
         Result[] results = this.table.get(gets);
         @SuppressWarnings("unchecked") T[] records = (T[]) Array.newInstance(hbRecordClass, rowKeys.length);
@@ -246,7 +246,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public List<T> get(List<R> rowKeys, int numVersionsToFetch) throws IOException {
         List<Get> gets = new ArrayList<>(rowKeys.size());
         for (R rowKey : rowKeys) {
-            gets.add(new Get(toBytes(rowKey)).setMaxVersions(numVersionsToFetch));
+            gets.add(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
         }
         Result[] results = this.table.get(gets);
         List<T> records = new ArrayList<>(rowKeys.size());
@@ -277,7 +277,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public List<T> get(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
-        Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey)).setMaxVersions(numVersionsToFetch);
+        Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey)).readVersions(numVersionsToFetch);
         ResultScanner scanner = table.getScanner(scan);
         List<T> records = new ArrayList<>();
         for (Result result : scanner) {
@@ -312,7 +312,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Increments field by specified amount
      *
      * @param rowKey     Row key of the record whose column needs to be incremented
-     * @param fieldName Field that needs to be incremented (this must be of {@link Long} type)
+     * @param fieldName  Field that needs to be incremented (this must be of {@link Long} type)
      * @param amount     Amount by which the HBase column needs to be incremented
      * @param durability The persistence guarantee for this increment (see {@link Durability})
      * @return The new value, post increment
@@ -337,9 +337,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Performs HBase {@link Table#increment} on the given {@link Increment} object <br>
      * <br>
      * <b>Note</b>: <ul>
-     *     <li>You may construct {@link Increment} object using the {@link #getIncrement(Serializable) getIncrement} method</li>
-     *     <li>Unlike the {@link #increment(Serializable, String, long)} methods, this method skips some validations (hence, be cautious)</li>
-     *     </ul>
+     * <li>You may construct {@link Increment} object using the {@link #getIncrement(Serializable) getIncrement} method</li>
+     * <li>Unlike the {@link #increment(Serializable, String, long)} methods, this method skips some validations (hence, be cautious)</li>
+     * </ul>
      *
      * @param increment HBase Increment object
      * @return <b>Partial object</b> containing (only) values that were incremented
@@ -570,9 +570,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public NavigableMap<R, NavigableMap<Long, Object>> fetchFieldValues(R startRowKey, R endRowKey, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
         WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
-        Scan scan = new Scan(toBytes(startRowKey), toBytes(endRowKey));
+        Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey));
         scan.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
-        scan.setMaxVersions(numVersionsToFetch);
+        scan.readVersions(numVersionsToFetch);
         ResultScanner scanner = table.getScanner(scan);
         NavigableMap<R, NavigableMap<Long, Object>> map = new TreeMap<>();
         for (Result result : scanner) {
@@ -609,7 +609,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
             Get get = new Get(toBytes(rowKey));
-            get.setMaxVersions(numVersionsToFetch);
+            get.readVersions(numVersionsToFetch);
             get.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
             gets.add(get);
         }

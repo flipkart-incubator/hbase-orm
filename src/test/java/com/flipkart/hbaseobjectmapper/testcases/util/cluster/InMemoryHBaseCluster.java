@@ -3,6 +3,7 @@ package com.flipkart.hbaseobjectmapper.testcases.util.cluster;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class InMemoryHBaseCluster implements HBaseCluster {
             versions[i] = e.getValue();
             i++;
         }
-        utility.createTable(Bytes.toBytes(tableName), families, versions);
+        utility.createTable(TableName.valueOf(tableName), families, versions);
     }
 
     @Override

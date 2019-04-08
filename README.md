@@ -3,9 +3,8 @@
 ## Introduction
 An ultra-light-weight HBase ORM library that enables
 
-1. reading from and/or writing to HBase tables in Hadoop MapReduce jobs
-2. object-oriented access of HBase rows ([Data Access Object](https://en.wikipedia.org/wiki/Data_access_object))
-3. writing high-quality test cases for classes that interact with HBase
+1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability
+2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs
 
 
 ## Usage
@@ -262,7 +261,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 	<version>1.11</version>
 </dependency>
 ```
-See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.flipkart%22%20AND%20a%3A%22hbase-object-mapper%22) or
+See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](https://search.maven.org/search?q=g:com.flipkart%20AND%20a:hbase-object-mapper&core=gav) or
 [com.flipkart:hbase-object-mapper on **MVN Repository**](https://mvnrepository.com/artifact/com.flipkart/hbase-object-mapper).
 ## How to build?
 To build this project, follow below simple steps:

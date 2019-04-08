@@ -6,37 +6,40 @@ import com.flipkart.hbaseobjectmapper.testcases.entities.*;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.javatuples.Triplet;
+import org.apache.hadoop.hbase.util.Triple;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.*;
 
 import static com.flipkart.hbaseobjectmapper.testcases.TestObjects.validObjects;
-import static com.flipkart.hbaseobjectmapper.testcases.util.LiteralsUtil.triplet;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("unchecked")
 public class TestHBObjectMapper {
     @SuppressWarnings("unchecked")
-    private final List<Triplet<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidRecordsAndErrorMessages = Arrays.asList(
-            triplet(Singleton.getInstance(), "A singleton class", EmptyConstructorInaccessibleException.class),
-            triplet(new ClassWithNoEmptyConstructor(1), "Class with no empty constructor", NoEmptyConstructorException.class),
-            triplet(new ClassWithPrimitives(1f), "A class with primitives", MappedColumnCantBePrimitiveException.class),
-            triplet(new ClassWithTwoFieldsMappedToSameColumn(), "Class with two fields mapped to same column", FieldsMappedToSameColumnException.class),
-            triplet(new ClassWithBadAnnotationStatic(), "Class with a static field mapped to HBase column", MappedColumnCantBeStaticException.class),
-            triplet(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column", MappedColumnCantBeTransientException.class),
-            triplet(new ClassWithNoHBColumns(), "Class with no fields mapped with HBColumn", MissingHBColumnFieldsException.class),
-            triplet(new ClassWithNoHBRowKeys(), "Class with no fields mapped with HBRowKey", MissingHBRowKeyFieldsException.class),
-            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotMap(), "Class with an incompatible field (not Map) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
-            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotNavigableMap(), "Class with an incompatible field (not NavigableMap) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
-            triplet(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.EntryKeyNotLong(), "Class with an incompatible field (NavigableMap's entry key not Long) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
-            triplet(new ClassesWithInvalidHBTableAnnotation.InvalidVersions(), "Class with an invalid number of versions in it's HBTable annotation", ImproperHBTableAnnotationExceptions.InvalidValueForVersionsOnHBTableAnnotationException.class),
-            triplet(new ClassesWithInvalidHBTableAnnotation.EmptyTableName(), "Class with empty table name in it's HBTable annotation", ImproperHBTableAnnotationExceptions.EmptyTableNameOnHBTableAnnotationException.class),
-            triplet(new ClassesWithInvalidHBTableAnnotation.EmptyColumnFamily(), "Class with empty column family name in it's HBTable annotation", ImproperHBTableAnnotationExceptions.EmptyColumnFamilyOnHBTableAnnotationException.class),
-            triplet(new ClassesWithInvalidHBTableAnnotation.DuplicateColumnFamilies(), "Class with duplicate column families in it's HBTable annotation", ImproperHBTableAnnotationExceptions.DuplicateColumnFamilyNamesOnHBTableAnnotationException.class),
-            triplet(new ClassesWithInvalidHBTableAnnotation.MissingHBTableAnnotation(), "Class with no HBTable annotation", ImproperHBTableAnnotationExceptions.MissingHBTableAnnotationException.class)
+    private final List<Triple<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidRecordsAndErrorMessages = Arrays.asList(
+            triple(Singleton.getInstance(), "A singleton class", EmptyConstructorInaccessibleException.class),
+            triple(new ClassWithNoEmptyConstructor(1), "Class with no empty constructor", NoEmptyConstructorException.class),
+            triple(new ClassWithPrimitives(1f), "A class with primitives", MappedColumnCantBePrimitiveException.class),
+            triple(new ClassWithTwoFieldsMappedToSameColumn(), "Class with two fields mapped to same column", FieldsMappedToSameColumnException.class),
+            triple(new ClassWithBadAnnotationStatic(), "Class with a static field mapped to HBase column", MappedColumnCantBeStaticException.class),
+            triple(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column", MappedColumnCantBeTransientException.class),
+            triple(new ClassWithNoHBColumns(), "Class with no fields mapped with HBColumn", MissingHBColumnFieldsException.class),
+            triple(new ClassWithNoHBRowKeys(), "Class with no fields mapped with HBRowKey", MissingHBRowKeyFieldsException.class),
+            triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotMap(), "Class with an incompatible field (not Map) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
+            triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotNavigableMap(), "Class with an incompatible field (not NavigableMap) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
+            triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.EntryKeyNotLong(), "Class with an incompatible field (NavigableMap's entry key not Long) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
+            triple(new ClassesWithInvalidHBTableAnnotation.InvalidVersions(), "Class with an invalid number of versions in it's HBTable annotation", ImproperHBTableAnnotationExceptions.InvalidValueForVersionsOnHBTableAnnotationException.class),
+            triple(new ClassesWithInvalidHBTableAnnotation.EmptyTableName(), "Class with empty table name in it's HBTable annotation", ImproperHBTableAnnotationExceptions.EmptyTableNameOnHBTableAnnotationException.class),
+            triple(new ClassesWithInvalidHBTableAnnotation.EmptyColumnFamily(), "Class with empty column family name in it's HBTable annotation", ImproperHBTableAnnotationExceptions.EmptyColumnFamilyOnHBTableAnnotationException.class),
+            triple(new ClassesWithInvalidHBTableAnnotation.DuplicateColumnFamilies(), "Class with duplicate column families in it's HBTable annotation", ImproperHBTableAnnotationExceptions.DuplicateColumnFamilyNamesOnHBTableAnnotationException.class),
+            triple(new ClassesWithInvalidHBTableAnnotation.MissingHBTableAnnotation(), "Class with no HBTable annotation", ImproperHBTableAnnotationExceptions.MissingHBTableAnnotationException.class)
     );
+
+    private static Triple<HBRecord, String, Class<? extends IllegalArgumentException>> triple(HBRecord record, String message, Class<? extends IllegalArgumentException> exceptionClass) {
+        return Triple.create(record, message, exceptionClass);
+    }
 
     final HBObjectMapper hbMapper = new HBObjectMapper();
 
@@ -126,76 +129,76 @@ public class TestHBObjectMapper {
     public void testInvalidClasses() {
         final String ERROR_MESSAGE = "Mismatch in type of exception thrown for class ";
         Set<String> exceptionMessages = new HashSet<>();
-        for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
-            HBRecord record = p.getValue0();
+        for (Triple<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
+            HBRecord record = p.getFirst();
             Class recordClass = record.getClass();
             assertFalse("Object mapper couldn't detect issue with invalid class " + recordClass.getName(), hbMapper.isValid(recordClass));
-            String errorMessage = p.getValue1() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
+            String errorMessage = p.getSecond() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
             String exMsgObjToResult = null, exMsgObjToPut = null, exMsgResultToObj = null, exMsgPutToObj = null;
             try {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
                 exMsgObjToResult = ex.getMessage();
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
                 exMsgObjToPut = ex.getMessage();
             }
             try {
                 hbMapper.readValue(someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
                 exMsgResultToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(someResult.getRow()), someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
             }
             try {
                 hbMapper.readValue(somePut, recordClass);
                 fail(errorMessage + " while converting Put to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
                 exMsgPutToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(somePut.getRow()), somePut, recordClass);
                 fail(errorMessage + " while converting row key and Put combo to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getValue2(), ex.getClass());
+                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
             }
             assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
             assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
             assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
-            System.out.printf("[edge case] %s threw below Exception, as expected:%n%s%n%n", p.getValue1(), exMsgObjToResult);
+            System.out.printf("[edge case] %s threw below Exception, as expected:%n%s%n%n", p.getSecond(), exMsgObjToResult);
             assertTrue("Same error message for different invalid inputs", exceptionMessages.add(exMsgObjToPut));
         }
     }
 
     @Test
     public void testInvalidObjects() {
-        for (Triplet<HBRecord, String, Class<? extends IllegalArgumentException>> p : TestObjects.invalidObjects) {
-            HBRecord record = p.getValue0();
-            String errorMessage = "An object with " + p.getValue1() + " should've thrown an " + p.getValue2().getName();
+        for (Triple<HBRecord, String, Class<? extends IllegalArgumentException>> p : TestObjects.invalidObjects) {
+            HBRecord record = p.getFirst();
+            String errorMessage = "An object with " + p.getSecond() + " should've thrown an " + p.getThird().getName();
             try {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result\nFailing object = " + record);
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown", p.getThird(), ex.getClass());
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put\nFailing object = " + record);
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getValue2(), ex.getClass());
+                assertEquals("Mismatch in type of exception thrown", p.getThird(), ex.getClass());
             }
         }
     }

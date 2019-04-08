@@ -4,3 +4,5 @@
 /out/
 /target/
 .DS_Store
+*.txt
+*.rdb

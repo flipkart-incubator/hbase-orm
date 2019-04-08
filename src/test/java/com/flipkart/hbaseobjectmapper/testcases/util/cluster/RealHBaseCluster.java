@@ -2,12 +2,9 @@ package com.flipkart.hbaseobjectmapper.testcases.util.cluster;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.util.Map;
@@ -36,10 +33,15 @@ public class RealHBaseCluster implements HBaseCluster {
             admin.deleteTable(tableName);
             System.out.println("[DONE]");
         }
-        HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
+        TableDescriptorBuilder tableDescriptorBuilder = TableDescriptorBuilder.newBuilder(tableName);
         for (Map.Entry<String, Integer> e : columnFamiliesAndVersions.entrySet()) {
-            tableDescriptor.addFamily(new HColumnDescriptor(e.getKey()).setMaxVersions(e.getValue()));
+            tableDescriptorBuilder.setColumnFamily(
+                    ColumnFamilyDescriptorBuilder.newBuilder(Bytes.toBytes(e.getKey()))
+                            .setMaxVersions(e.getValue())
+                            .build()
+            );
         }
+        TableDescriptor tableDescriptor = tableDescriptorBuilder.build();
         System.out.format("Creating table '%s': ", tableName);
         admin.createTable(tableDescriptor);
         System.out.println("[DONE]");
