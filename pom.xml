@@ -11,7 +11,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.12-SNAPSHOT</version>
+    <version>1.12</version>
     <url>https://flipkart-incubator.github.io/hbase-orm/</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-orm/</url>
@@ -39,7 +39,7 @@
         <repository>
             <id>HDPReleases</id>
             <name>HDP Releases</name>
-            <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+            <url>https://repo.hortonworks.com/content/repositories/releases/</url>
         </repository>
     </repositories>
     <properties>
