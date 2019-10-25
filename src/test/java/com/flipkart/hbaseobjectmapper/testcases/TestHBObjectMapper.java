@@ -17,6 +17,7 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("unchecked")
 public class TestHBObjectMapper {
+    public static final int NUM_ITERATIONS = 100;
     @SuppressWarnings("unchecked")
     private final List<Triple<HBRecord, String, Class<? extends IllegalArgumentException>>> invalidRecordsAndErrorMessages = Arrays.asList(
             triple(Singleton.getInstance(), "A singleton class", EmptyConstructorInaccessibleException.class),
@@ -54,20 +55,31 @@ public class TestHBObjectMapper {
             testResultWithRow(obj);
             testPut(obj);
             testPutWithRow(obj);
+            System.out.printf("*****%n%n");
         }
     }
 
     private void testResult(HBRecord p) {
         long start, end;
         start = System.currentTimeMillis();
-        Result result = hbMapper.writeValueAsResult(p);
+        Result result = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            result = hbMapper.writeValueAsResult(p);
+        }
         end = System.currentTimeMillis();
-        System.out.printf("Time taken for POJO -> Result = %dms%n", end - start);
+        System.out.printf("Time taken for POJO -> Result = %.2fms%n", timeTaken(start, end));
         start = System.currentTimeMillis();
-        HBRecord pFromResult = hbMapper.readValue(result, p.getClass());
+        HBRecord pFromResult = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            pFromResult = hbMapper.readValue(result, p.getClass());
+        }
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result", p, pFromResult);
-        System.out.printf("Time taken for Result -> POJO = %dms%n", end - start);
+        System.out.printf("Time taken for Result -> POJO = %.2fms%n", timeTaken(start, end));
+    }
+
+    private double timeTaken(long start, long end) {
+        return (double) (end - start) / (double) NUM_ITERATIONS;
     }
 
     private <R extends Serializable & Comparable<R>> void testResultWithRow(HBRecord<R> p) {
@@ -75,10 +87,13 @@ public class TestHBObjectMapper {
         Result result = hbMapper.writeValueAsResult(l(p, p)).get(0);
         ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
         start = System.currentTimeMillis();
-        HBRecord pFromResult = hbMapper.readValue(rowKey, result, p.getClass());
+        HBRecord pFromResult = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            pFromResult = hbMapper.readValue(rowKey, result, p.getClass());
+        }
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Result+Row", p, pFromResult);
-        System.out.printf("Time taken for Rowkey+Result -> POJO = %dms%n", end - start);
+        System.out.printf("Time taken for Rowkey+Result -> POJO = %.2fms%n", timeTaken(start, end));
     }
 
     @SafeVarargs
@@ -92,14 +107,20 @@ public class TestHBObjectMapper {
     private void testPut(HBRecord p) {
         long start, end;
         start = System.currentTimeMillis();
-        @SuppressWarnings("unchecked") Put put = (Put) hbMapper.writeValueAsPut(l(p, p)).get(0);
+        Put put = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            put = (Put) hbMapper.writeValueAsPut(l(p, p)).get(0);
+        }
         end = System.currentTimeMillis();
-        System.out.printf("Time taken for POJO -> Put = %dms%n", end - start);
+        System.out.printf("Time taken for POJO -> Put = %.2fms%n", timeTaken(start, end));
         start = System.currentTimeMillis();
-        HBRecord pFromPut = hbMapper.readValue(put, p.getClass());
+        HBRecord pFromPut = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            pFromPut = hbMapper.readValue(put, p.getClass());
+        }
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
-        System.out.printf("Time taken for Put -> POJO = %dms%n", end - start);
+        System.out.printf("Time taken for Put -> POJO = %.2fms%n", timeTaken(start, end));
     }
 
     private <R extends Serializable & Comparable<R>> void testPutWithRow(HBRecord<R> p) {
@@ -107,10 +128,13 @@ public class TestHBObjectMapper {
         Put put = hbMapper.writeValueAsPut(p);
         ImmutableBytesWritable rowKey = hbMapper.getRowKey(p);
         start = System.currentTimeMillis();
-        HBRecord pFromPut = hbMapper.readValue(rowKey, put, p.getClass());
+        HBRecord pFromPut = null;
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            pFromPut = hbMapper.readValue(rowKey, put, p.getClass());
+        }
         end = System.currentTimeMillis();
         assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
-        System.out.printf("Time taken for Rowkey+Put -> POJO = %dms%n%n", end - start);
+        System.out.printf("Time taken for Rowkey+Put -> POJO = %.2fms%n%n", timeTaken(start, end));
     }
 
     @Test(expected = RowKeyCouldNotBeParsedException.class)

@@ -8,7 +8,6 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -18,10 +17,7 @@ import java.util.*;
 
 /**
  * A <i>Data Access Object</i> class that enables simple random access (read/write) of HBase rows.
- * <p>
- * Please note: This class relies heavily on HBase client library's {@link Table} interface, whose implementations aren't thread-safe. Hence, this class isn't thread-safe.
- * <p>
- * To learn more about thread-safe access to HBase, see conversation here: <a href="https://issues.apache.org/jira/browse/HBASE-17361">HBASE-17361</a>
+ * <b>This class is thread-safe.</b>
  *
  * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
  * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
@@ -31,10 +27,10 @@ import java.util.*;
  * @see HTable
  */
 @SuppressWarnings("WeakerAccess")
-public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> implements Closeable {
+public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> {
 
     protected final HBObjectMapper hbObjectMapper;
-    protected final Table table;
+    protected final Connection connection;
     protected final Class<R> rowKeyClass;
     protected final Class<T> hbRecordClass;
     protected final WrappedHBTable<R, T> hbTable;
@@ -48,25 +44,26 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param connection     HBase Connection
      * @param hbObjectMapper Your custom {@link HBObjectMapper}
-     * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
     @SuppressWarnings("unchecked")
-    protected AbstractHBDAO(Connection connection, HBObjectMapper hbObjectMapper) throws IOException {
+    protected AbstractHBDAO(Connection connection, HBObjectMapper hbObjectMapper) {
+        this.connection = connection;
         this.hbObjectMapper = hbObjectMapper;
         hbRecordClass = (Class<T>) new TypeToken<T>(getClass()) {
         }.getRawType();
+        if (hbRecordClass == null) {
+            throw new IllegalStateException("Unable to resolve HBase record type");
+        }
         this.hbObjectMapper.validateHBClass(hbRecordClass);
         rowKeyClass = (Class<R>) new TypeToken<R>(getClass()) {
         }.getRawType();
-        if (hbRecordClass == null || rowKeyClass == null) {
-            throw new IllegalStateException(String.format("Unable to resolve HBase record/rowkey type (record class is resolving to %s and rowkey class is resolving to %s)", hbRecordClass, rowKeyClass));
+        if (rowKeyClass == null) {
+            throw new IllegalStateException("Unable to resolve HBase rowkey type");
         }
         hbTable = new WrappedHBTable<>(hbRecordClass);
-        table = connection.getTable(hbTable.getName());
         fields = hbObjectMapper.getHBColumnFields0(hbRecordClass);
     }
-
 
     /**
      * Constructs a data access object using your custom {@link HBObjectMapper}
@@ -78,7 +75,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration configuration, HBObjectMapper hbObjectMapper) throws IOException {
         this(ConnectionFactory.createConnection(configuration), hbObjectMapper);
     }
@@ -91,11 +87,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param connection HBase Connection
      * @param codec      Your custom codec. If <code>null</code>, default codec is used.
-     * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    @SuppressWarnings("unchecked")
-    protected AbstractHBDAO(Connection connection, Codec codec) throws IOException {
+    protected AbstractHBDAO(Connection connection, Codec codec) {
         this(connection, HBObjectMapperFactory.construct(codec));
     }
 
@@ -109,7 +103,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration configuration, Codec codec) throws IOException {
         this(ConnectionFactory.createConnection(configuration), HBObjectMapperFactory.construct(codec));
     }
@@ -121,7 +114,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Connection connection) throws IOException {
         this(connection, (Codec) null);
     }
@@ -133,7 +125,6 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    @SuppressWarnings("unchecked")
     protected AbstractHBDAO(Configuration configuration) throws IOException {
         this(configuration, (Codec) null);
     }
@@ -147,8 +138,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T get(R rowKey, int numVersionsToFetch) throws IOException {
-        Result result = this.table.get(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
-        return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
+        try (Table table = getHBaseTable()) {
+            Result result = table.get(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
+            return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
+        }
     }
 
     /**
@@ -183,8 +176,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public T getOnGet(Get get) throws IOException {
-        Result result = this.table.get(get);
-        return hbObjectMapper.readValue(result, hbRecordClass);
+        try (Table table = getHBaseTable()) {
+            Result result = table.get(get);
+            return hbObjectMapper.readValue(result, hbRecordClass);
+        }
     }
 
     /**
@@ -194,10 +189,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     @SuppressWarnings("unused")
     public List<T> getOnGets(List<Get> gets) throws IOException {
-        Result[] results = this.table.get(gets);
-        List<T> records = new ArrayList<>(results.length);
-        for (Result result : results) {
-            records.add(hbObjectMapper.readValue(result, hbRecordClass));
+        List<T> records = new ArrayList<>(gets.size());
+        try (Table table = getHBaseTable()) {
+            Result[] results = table.get(gets);
+            for (Result result : results) {
+                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+            }
         }
         return records;
     }
@@ -216,10 +213,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             gets.add(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
         }
-        Result[] results = this.table.get(gets);
         @SuppressWarnings("unchecked") T[] records = (T[]) Array.newInstance(hbRecordClass, rowKeys.length);
-        for (int i = 0; i < records.length; i++) {
-            records[i] = hbObjectMapper.readValue(rowKeys[i], results[i], hbRecordClass);
+        try (Table table = getHBaseTable()) {
+            Result[] results = table.get(gets);
+            for (int i = 0; i < records.length; i++) {
+                records[i] = hbObjectMapper.readValue(rowKeys[i], results[i], hbRecordClass);
+            }
         }
         return records;
     }
@@ -248,10 +247,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             gets.add(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
         }
-        Result[] results = this.table.get(gets);
         List<T> records = new ArrayList<>(rowKeys.size());
-        for (Result result : results) {
-            records.add(hbObjectMapper.readValue(result, hbRecordClass));
+        try (Table table = getHBaseTable()) {
+            Result[] results = table.get(gets);
+            for (Result result : results) {
+                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+            }
         }
         return records;
     }
@@ -278,10 +279,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public List<T> get(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
         Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey)).readVersions(numVersionsToFetch);
-        ResultScanner scanner = table.getScanner(scan);
         List<T> records = new ArrayList<>();
-        for (Result result : scanner) {
-            records.add(hbObjectMapper.readValue(result, hbRecordClass));
+        try (Table table = getHBaseTable();
+             ResultScanner scanner = table.getScanner(scan)) {
+            for (Result result : scanner) {
+                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+            }
         }
         return records;
     }
@@ -305,7 +308,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public long increment(R rowKey, String fieldName, long amount) throws IOException {
         WrappedHBColumn hbColumn = validateAndGetLongColumn(fieldName);
-        return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount);
+        try (Table table = getHBaseTable()) {
+            return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount);
+        }
     }
 
     /**
@@ -320,7 +325,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public long increment(R rowKey, String fieldName, long amount, Durability durability) throws IOException {
         WrappedHBColumn hbColumn = validateAndGetLongColumn(fieldName);
-        return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount, durability);
+        try (Table table = getHBaseTable()) {
+            return table.incrementColumnValue(toBytes(rowKey), hbColumn.familyBytes(), hbColumn.columnBytes(), amount, durability);
+        }
     }
 
     /**
@@ -342,12 +349,95 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * </ul>
      *
      * @param increment HBase Increment object
-     * @return <b>Partial object</b> containing (only) values that were incremented
+     * @return <b>Partial object</b> containing (only) values  of fields that were incremented
      * @throws IOException When HBase call fails
      */
     public T increment(Increment increment) throws IOException {
-        Result result = table.increment(increment);
-        return hbObjectMapper.readValue(result, hbRecordClass);
+        try (Table table = getHBaseTable()) {
+            Result result = table.increment(increment);
+            return hbObjectMapper.readValue(result, hbRecordClass);
+        }
+    }
+
+    /**
+     * Appends value of a field with the value provided. If the field is empty, the value provided becomes the value of the field.
+     * <br><br>
+     * This operation applies to fields of types such as {@link String}. Use this on non-{@link String} fields only if you understand the semantics.
+     *
+     * @param rowKey        Row key of the record
+     * @param fieldName     Name of the field whose value needs to be appended
+     * @param valueToAppend Value to be appended
+     * @return <b>Partial object</b> containing (only) value of field that was appended
+     * @throws IOException When HBase call fails
+     * @see Table#append(Append)
+     * @see #append(Serializable, Map)
+     */
+    public T append(R rowKey, String fieldName, Object valueToAppend) throws IOException {
+        Map<String, Object> one = new HashMap<>(1);
+        one.put(fieldName, valueToAppend);
+        return append(rowKey, one);
+    }
+
+    /**
+     * Appends values of fields with the values provided. For empty fields, the value provided becomes the value of the field.
+     * <br><br>
+     * This operation applies to fields of types such as {@link String}. Use this on non-{@link String} fields only if you understand the semantics.
+     *
+     * @param rowKey         Row key of the record
+     * @param valuesToAppend Map of field name of value to be appended
+     * @return <b>Partial object</b> containing (only) values of fields that were appended
+     * @throws IOException When HBase call fails
+     * @see Table#append(Append)
+     * @see #append(Serializable, String, Object)
+     */
+    public T append(R rowKey, Map<String, Object> valuesToAppend) throws IOException {
+        Append append = new Append(toBytes(rowKey));
+        for (Map.Entry<String, Object> e : valuesToAppend.entrySet()) {
+            String fieldName = e.getKey();
+            Field field = getField(fieldName);
+            WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
+            Object value = e.getValue();
+            if (!field.getType().isAssignableFrom(value.getClass())) {
+                throw new IllegalArgumentException(String.format("An attempt was made to append a value of type '%s' to field '%s', which is of type '%s' (incompatible)", value.getClass(), fieldName, field.getType()));
+            }
+            append.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes(),
+                    hbObjectMapper.valueToByteArray((Serializable) value, hbColumn.codecFlags())
+            );
+        }
+        try (Table table = getHBaseTable()) {
+            Result result = table.append(append);
+            return hbObjectMapper.readValue(result, hbRecordClass);
+        }
+    }
+
+
+    /**
+     * Gets HBase's (native) {@link Append} object for given row key, to be later used in {@link #append(Append)} method.
+     *
+     * @param rowKey HBase row key
+     * @return HBase's {@link Append} object
+     */
+    public Append getAppend(R rowKey) {
+        return new Append(toBytes(rowKey));
+    }
+
+    /**
+     * Performs HBase's {@link Table#append} on the given {@link Append} object <br>
+     * <br>
+     * <b>Note</b>: <ul>
+     * <li>You may construct {@link Append} object using the {@link #getAppend(Serializable) getAppend} method</li>
+     * <li>Unlike the {@link #append(Serializable, String, Object)} and related methods, this method skips some validations. So, use this only if you need access to HBase's native methods.</li>
+     * </ul>
+     *
+     * @param append HBase's {@link Append} object
+     * @return <b>Partial object</b> containing (only) values  of fields that were appended
+     * @throws IOException When HBase call fails
+     */
+    public T append(Append append) throws IOException {
+        try (Table table = getHBaseTable()) {
+            Result result = table.append(append);
+            return hbObjectMapper.readValue(result, hbRecordClass);
+        }
     }
 
     /**
@@ -371,8 +461,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public R persist(HBRecord<R> record) throws IOException {
         Put put = hbObjectMapper.writeValueAsPut(record);
-        table.put(put);
-        return record.composeRowKey();
+        try (Table table = getHBaseTable()) {
+            table.put(put);
+            return record.composeRowKey();
+        }
     }
 
     /**
@@ -389,7 +481,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             puts.add(hbObjectMapper.writeValueAsPut(object));
             rowKeys.add(object.composeRowKey());
         }
-        table.put(puts);
+        try (Table table = getHBaseTable()) {
+            table.put(puts);
+        }
         return rowKeys;
     }
 
@@ -402,7 +496,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public void delete(R rowKey) throws IOException {
         Delete delete = new Delete(toBytes(rowKey));
-        this.table.delete(delete);
+        try (Table table = getHBaseTable()) {
+            table.delete(delete);
+        }
     }
 
     /**
@@ -426,7 +522,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (R rowKey : rowKeys) {
             deletes.add(new Delete(toBytes(rowKey)));
         }
-        this.table.delete(deletes);
+        try (Table table = getHBaseTable()) {
+            table.delete(deletes);
+        }
     }
 
     /**
@@ -440,7 +538,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (HBRecord<R> record : records) {
             deletes.add(new Delete(toBytes(record.composeRowKey())));
         }
-        this.table.delete(deletes);
+        try (Table table = getHBaseTable()) {
+            table.delete(deletes);
+        }
     }
 
     /**
@@ -475,15 +575,16 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Get reference to HBase table
      *
      * @return {@link HTable} object
+     * @throws IOException When table reference couldn't be resolved through connection
      */
-    public Table getHBaseTable() {
-        return table;
+    public Table getHBaseTable() throws IOException {
+        return connection.getTable(hbTable.getName());
     }
 
     private Field getField(String fieldName) {
         Field field = fields.get(fieldName);
         if (field == null) {
-            throw new IllegalArgumentException(String.format("Unrecognized field: '%s'. Choose one of %s", fieldName, fields.values().toString()));
+            throw new IllegalArgumentException(String.format("Unrecognized field: '%s'. Choose one of %s%n", fieldName, fields.keySet()));
         }
         return field;
     }
@@ -498,7 +599,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             Type fieldType = hbObjectMapper.getFieldType(field, hbColumn.isMultiVersioned());
             @SuppressWarnings("unchecked") final R rowKey = hbObjectMapper.bytesToRowKey(CellUtil.cloneRow(cell), hbTable.getCodecFlags(), (Class<T>) field.getDeclaringClass());
             if (!map.containsKey(rowKey)) {
-                map.put(rowKey, new TreeMap<Long, Object>());
+                map.put(rowKey, new TreeMap<>());
             }
             map.get(rowKey).put(cell.getTimestamp(), hbObjectMapper.byteArrayToValue(CellUtil.cloneValue(cell), fieldType, hbColumn.codecFlags()));
         }
@@ -514,8 +615,11 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public Object fetchFieldValue(R rowKey, String fieldName) throws IOException {
         final NavigableMap<Long, Object> fieldValues = fetchFieldValue(rowKey, fieldName, 1);
-        if (fieldValues == null || fieldValues.isEmpty()) return null;
-        else return fieldValues.lastEntry().getValue();
+        if (fieldValues == null || fieldValues.isEmpty()) {
+            return null;
+        } else {
+            return fieldValues.lastEntry().getValue();
+        }
     }
 
 
@@ -573,10 +677,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey));
         scan.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
         scan.readVersions(numVersionsToFetch);
-        ResultScanner scanner = table.getScanner(scan);
         NavigableMap<R, NavigableMap<Long, Object>> map = new TreeMap<>();
-        for (Result result : scanner) {
-            populateFieldValuesToMap(field, result, map);
+        try (Table table = getHBaseTable();
+             ResultScanner scanner = table.getScanner(scan)) {
+            for (Result result : scanner) {
+                populateFieldValuesToMap(field, result, map);
+            }
         }
         return map;
     }
@@ -613,10 +719,12 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             get.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
             gets.add(get);
         }
-        Result[] results = this.table.get(gets);
         Map<R, NavigableMap<Long, Object>> map = new HashMap<>(rowKeys.length, 1.0f);
-        for (Result result : results) {
-            populateFieldValuesToMap(field, result, map);
+        try (Table table = getHBaseTable()) {
+            Result[] results = table.get(gets);
+            for (Result result : results) {
+                populateFieldValuesToMap(field, result, map);
+            }
         }
         return map;
     }
@@ -625,8 +733,4 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         return hbObjectMapper.rowKeyToBytes(rowKey, hbTable.getCodecFlags());
     }
 
-    @Override
-    public void close() throws IOException {
-        table.close();
-    }
 }

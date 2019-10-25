@@ -36,7 +36,7 @@ public class InMemoryHBaseCluster implements HBaseCluster {
             executorService.submit(new Callable<MiniHBaseCluster>() {
                 @Override
                 public MiniHBaseCluster call() throws Exception {
-                    return utility.startMiniCluster();
+                    return utility.startMiniCluster(1, 1, false);
                 }
             }).get(timeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
@@ -46,7 +46,7 @@ public class InMemoryHBaseCluster implements HBaseCluster {
                             "[1] Increase timeout by setting the '%s' environmental variable to a value higher than %d%n" +
                             "[2] Using a machine with better hardware configuration%n" +
                             "[3] Use a real hbase cluster by setting environmental variable '%s' to 'true'%n" +
-                            "[4] Skip test cases :-)", timeout, INMEMORY_CLUSTER_START_TIMEOUT, timeout, USE_REAL_HBASE), e);
+                            "[4] Skip test cases (not recommended)", timeout, INMEMORY_CLUSTER_START_TIMEOUT, timeout, USE_REAL_HBASE), e);
         } catch (Exception e) {
             throw new IOException("Error starting an in-memory HBase cluster", e);
         }
