@@ -99,85 +99,6 @@ public class Citizen implements HBRecord<CitizenKey> {
 * The default codec class `BestSuitCodec` takes a flag `BestSuitCodec.SERIALIZE_AS_STRING`, whose value is "serializeAsString" (as in the above `Citizen` class example). When this flag is set to `true` on a field, the default codec serializes that field (even numerical fields) as strings.
   * Your custom codec may take other such flags to customize serialization/deserialization behavior at a **class field level**.
 
-## Using this library in MapReduce jobs
-
-### Mapper
-If your MapReduce job is reading from an HBase table, in your `map()` method, HBase's `Result` object can be converted to object of your bean-like class using below method: 
-
-```java
-T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
-```
-
-For example:
-
-```java
-Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
-```
-
-### Reducer
-If your MapReduce job is writing to an HBase table, in your `reduce()` method, object of your bean-like class can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
-
-```java
-ImmutableBytesWritable getRowKey(HBRecord<R> obj)
-```
-```java
-Put writeValueAsPut(HBRecord<R> obj)
-```
-For example, below code in Reducer writes your object as one HBase row with appropriate column families and columns:
-
-```java
-Citizen citizen = new Citizen(/*details*/);
-context.write(hbObjectMapper.getRowKey(citizen), hbObjectMapper.writeValueAsPut(citizen));
-```
-### Unit-test for Mapper
-If your MapReduce job is reading from an HBase table, you would want to unit-test your `map()` method as below.
-
-Object of your bean-like class can be converted to HBase's `Result` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
-
-```java
-ImmutableBytesWritable getRowKey(HBRecord<R> obj)
-```
-```java
-Result writeValueAsResult(HBRecord<R> obj)
-```
-Below is an example of unit-test of a Mapper using [MRUnit](https://attic.apache.org/projects/mrunit.html):
-
-```java
-Citizen citizen = new Citizen(/*params*/);
-citizenMapDriver
-.withInput(
-  hbObjectMapper.getRowKey(citizen),
-  hbObjectMapper.writeValueAsResult(citizen)
-)
-.withOutput(
-  hbObjectMapper.toIbw("key"),
-  new IntWritable(citizen.getAge())
-)
-.runTest();
-```
-
-### Unit-test for Reducer
-If your MapReduce job is writing to an HBase table, you would want to unit-test your `reduce()` method as below.
-
-HBase's `Put` object can be converted to your object of you bean-like class using below method:
- 
-```java
-T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz)
-```
-
-Below is an example of unit-test of a Reducer using [MRUnit](https://attic.apache.org/projects/mrunit.html):
-
-```java
-Pair<ImmutableBytesWritable, Mutation> reducerResult = citizenReduceDriver
-  .withInput(hbObjectMapper.toIbw("key"), inputList)
-  .run()
-.get(0);
-CitizenSummary citizenSummary = hbObjectMapper.readValue(
-  reducerResult.getFirst(),
-  (Put) reducerResult.getSecond(),
-  CitizenSummary.class
-);
-```
 ## Using this library for database access (DAO)
 This library provides an abstract class to define your own [data access object](https://en.wikipedia.org/wiki/Data_access_object). For example, you can create one for `Citizen` class in the above example as follows:
 
@@ -291,6 +212,86 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/TestsAbstractHBDAO.java) for more detailed examples)
 
 **Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical (Hibernate-like) ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if that's your intent, I suggest you use [Apache Phoenix](https://phoenix.apache.org/).
+
+## Using this library in MapReduce jobs
+
+### Mapper
+If your MapReduce job is reading from an HBase table, in your `map()` method, HBase's `Result` object can be converted to object of your bean-like class using below method: 
+
+```java
+T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
+```
+
+For example:
+
+```java
+Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
+```
+
+### Reducer
+If your MapReduce job is writing to an HBase table, in your `reduce()` method, object of your bean-like class can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
+
+```java
+ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+```
+```java
+Put writeValueAsPut(HBRecord<R> obj)
+```
+For example, below code in Reducer writes your object as one HBase row with appropriate column families and columns:
+
+```java
+Citizen citizen = new Citizen(/*details*/);
+context.write(hbObjectMapper.getRowKey(citizen), hbObjectMapper.writeValueAsPut(citizen));
+```
+### Unit-test for Mapper
+If your MapReduce job is reading from an HBase table, you would want to unit-test your `map()` method as below.
+
+Object of your bean-like class can be converted to HBase's `Result` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
+
+```java
+ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+```
+```java
+Result writeValueAsResult(HBRecord<R> obj)
+```
+Below is an example of unit-test of a Mapper using [MRUnit](https://attic.apache.org/projects/mrunit.html):
+
+```java
+Citizen citizen = new Citizen(/*params*/);
+citizenMapDriver
+.withInput(
+  hbObjectMapper.getRowKey(citizen),
+  hbObjectMapper.writeValueAsResult(citizen)
+)
+.withOutput(
+  hbObjectMapper.toIbw("key"),
+  new IntWritable(citizen.getAge())
+)
+.runTest();
+```
+
+### Unit-test for Reducer
+If your MapReduce job is writing to an HBase table, you would want to unit-test your `reduce()` method as below.
+
+HBase's `Put` object can be converted to your object of you bean-like class using below method:
+ 
+```java
+T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz)
+```
+
+Below is an example of unit-test of a Reducer using [MRUnit](https://attic.apache.org/projects/mrunit.html):
+
+```java
+Pair<ImmutableBytesWritable, Mutation> reducerResult = citizenReduceDriver
+  .withInput(hbObjectMapper.toIbw("key"), inputList)
+  .run()
+.get(0);
+CitizenSummary citizenSummary = hbObjectMapper.readValue(
+  reducerResult.getFirst(),
+  (Put) reducerResult.getSecond(),
+  CitizenSummary.class
+);
+```
 
 ## Advantages
  * Your application code will be clean and minimal.
