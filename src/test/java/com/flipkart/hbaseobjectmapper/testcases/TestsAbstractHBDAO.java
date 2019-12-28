@@ -1,6 +1,7 @@
 package com.flipkart.hbaseobjectmapper.testcases;
 
 import com.flipkart.hbaseobjectmapper.HBRecord;
+import com.flipkart.hbaseobjectmapper.Records;
 import com.flipkart.hbaseobjectmapper.WrappedHBColumnTC;
 import com.flipkart.hbaseobjectmapper.codec.JavaObjectStreamCodec;
 import com.flipkart.hbaseobjectmapper.testcases.daos.*;
@@ -8,6 +9,7 @@ import com.flipkart.hbaseobjectmapper.testcases.entities.*;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.HBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.InMemoryHBaseCluster;
 import com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster;
+import com.google.common.collect.Iterables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -30,7 +32,7 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("unchecked")
 public class TestsAbstractHBDAO {
-    private static Configuration configuration;
+    private static Connection connection;
     private static HBaseCluster hBaseCluster;
 
     @BeforeClass
@@ -48,7 +50,8 @@ public class TestsAbstractHBDAO {
                     hBaseCluster = new InMemoryHBaseCluster();
                 }
             }
-            configuration = hBaseCluster.init();
+            Configuration configuration = hBaseCluster.init();
+            connection = ConnectionFactory.createConnection(configuration);
             hBaseCluster.createTable("citizens", m(e("main", 1), e("optional", 3)));
             hBaseCluster.createTable("citizens_summary", m(e("a", 3)));
         } catch (NumberFormatException e) {
@@ -87,8 +90,8 @@ public class TestsAbstractHBDAO {
 
     @Test
     public void testCRUD() throws IOException {
-        CitizenDAO citizenDao = new CitizenDAO(configuration);
-        CitizenSummaryDAO citizenSummaryDAO = new CitizenSummaryDAO(configuration);
+        CitizenDAO citizenDao = new CitizenDAO(connection);
+        CitizenSummaryDAO citizenSummaryDAO = new CitizenSummaryDAO(connection);
         final List<Citizen> records = TestObjects.validCitizenObjects;
         assertEquals("citizens", citizenDao.getTableName());
         final Set<String> columnFamiliesCitizen = citizenDao.getColumnFamiliesAndVersions().keySet(), columnFamiliesCitizenSummary = citizenSummaryDAO.getColumnFamiliesAndVersions().keySet();
@@ -153,6 +156,26 @@ public class TestsAbstractHBDAO {
         for (int i = 0; i < citizens.size(); i++) {
             assertEquals(String.format("[range scan] The result of get(%s, %s) returned unexpected entry at position " + i, startRowKey, endRowKey), records.get(i), citizens.get(i));
         }
+        try (Records<Citizen> citizenIterable = citizenDao.records(startRowKey, endRowKey, Integer.MAX_VALUE)) {
+            Citizen[] expectedCitizens = citizens.toArray(new Citizen[citizens.size()]); // this contains all records except the last one
+            Citizen[] actualCitizens = Iterables.toArray(citizenIterable, Citizen.class);
+            assertArrayEquals("Fetch directly vs fetch via iterable differ in results [start row key, end row key]", expectedCitizens, actualCitizens);
+        }
+        Citizen[] allCitizens = citizenDao.get(Arrays.asList(allRowKeys)).toArray(new Citizen[allRowKeys.length]);
+        List<Citizen> citizensByPrefix = citizenDao.getByPrefix(citizenDao.toBytes("IND#"));
+        assertArrayEquals("get by prefix is returning incorrect result", citizensByPrefix.toArray(new Citizen[citizensByPrefix.size()]), allCitizens);
+        try (Records<Citizen> citizenIterable = citizenDao.recordsByPrefix(citizenDao.toBytes("IND#"))) {
+            Citizen[] expectedCitizens = citizenDao.get(allRowKeys);
+            assertArrayEquals("Fetch directly vs fetch via iterable differ in results [row key prefix]", expectedCitizens, Iterables.toArray(citizenIterable, Citizen.class));
+            assertArrayEquals("Results of Get by array of row keys did not match that of list", expectedCitizens, allCitizens);
+        }
+        try (Records<Citizen> citizenIterable = citizenDao.records("IND#101", true, "IND#102", true, 1, 1000)) {
+            Iterator<Citizen> iterator = citizenIterable.iterator();
+            Citizen citizen1 = iterator.next();
+            Citizen citizen2 = iterator.next();
+            assertEquals("Get by iterable didn't match get by individual record", citizenDao.get("IND#101"), citizen1);
+            assertEquals("Get by iterable didn't match get by individual record", citizenDao.get("IND#102"), citizen2);
+        }
 
         // Range Get vs Bulk Get (Single-version)
         for (String f : citizenDao.getFields()) {
@@ -202,47 +225,42 @@ public class TestsAbstractHBDAO {
 
     @Test
     public void testAppend() throws IOException {
+        CitizenDAO citizenDao = new CitizenDAO(connection);
+        Citizen citizenBeforeAppend = new Citizen("IND", 120, "Abdul", null, null, null, null, null, null, null, null, null, null, new Dependents(null, Arrays.asList(141, 142)), null);
+        assertNull(citizenBeforeAppend.getSal());
+        String rowKey = citizenDao.persist(citizenBeforeAppend);
+        Integer expectedSalary = 30000;
+        citizenDao.append(rowKey, "sal", expectedSalary);
         try {
-            CitizenDAO citizenDao = new CitizenDAO(configuration);
-            Citizen citizenBeforeAppend = new Citizen("IND", 120, "Abdul", null, null, null, null, null, null, null, null, null, null, new Dependents(null, Arrays.asList(141, 142)), null);
-            assertNull(citizenBeforeAppend.getSal());
-            String rowKey = citizenDao.persist(citizenBeforeAppend);
-            Integer expectedSalary = 30000;
-            citizenDao.append(rowKey, "sal", expectedSalary);
-            try {
-                citizenDao.append(rowKey, "blahblah", 5);
-                fail("An attempt was made to append value a non-existent field. This should have thrown an exception - It didn't.");
-            } catch (Exception e) {
-                System.out.printf("[egde case] Got error as expected, for non-existent column: %s%n", e.getMessage());
-            }
-            Citizen citizenAfter1Append = citizenDao.get(rowKey);
-            assertEquals("Append operation didn't work as expected on field 'sal'", expectedSalary, citizenAfter1Append.getSal());
-            List<Contact> expectedContacts = Arrays.asList(new Contact("contact1", 23411));
-            citizenDao.append(rowKey, "emergencyContacts1", expectedContacts);
-            Citizen citizenAfter2Append = citizenDao.get(rowKey);
-            assertEquals("Append operation didn't work as expected on field 'emergencyContacts1'", expectedContacts, citizenAfter2Append.getEmergencyContacts1());
-            try {
-                citizenDao.append(rowKey, m(e("f3", 123L), e("f4", "blah blah blah")));
-                fail("An attempt was made to append a BigDecimal field with a String value - This should have thrown an exception - It didn't.");
-            } catch (Exception e) {
-                System.out.printf("[edge case] Got error as expected, for type mismatch in columns: %s%n", e.getMessage());
-            }
-            Citizen citizenAfter3Append = citizenDao.get(rowKey);
-            assertNull("Append operation broke 'all or none' semantics", citizenAfter3Append.getF3());
-            citizenDao.append(rowKey, m(e("f3", 123L)));
-            Citizen citizenAfter4Append = citizenDao.get(rowKey);
-            assertEquals("Append operation failed for f3", 123L, (long) citizenAfter4Append.getF3());
-            citizenDao.append(rowKey, "name", " Kalam");
-            assertEquals("Append operation failed for name", "Abdul Kalam", citizenDao.fetchFieldValue(rowKey, "name"));
-        } finally {
-
+            citizenDao.append(rowKey, "blahblah", 5);
+            fail("An attempt was made to append value a non-existent field. This should have thrown an exception - It didn't.");
+        } catch (Exception e) {
+            System.out.printf("[egde case] Got error as expected, for non-existent column: %s%n", e.getMessage());
         }
+        Citizen citizenAfter1Append = citizenDao.get(rowKey);
+        assertEquals("Append operation didn't work as expected on field 'sal'", expectedSalary, citizenAfter1Append.getSal());
+        List<Contact> expectedContacts = Arrays.asList(new Contact("contact1", 23411));
+        citizenDao.append(rowKey, "emergencyContacts1", expectedContacts);
+        Citizen citizenAfter2Append = citizenDao.get(rowKey);
+        assertEquals("Append operation didn't work as expected on field 'emergencyContacts1'", expectedContacts, citizenAfter2Append.getEmergencyContacts1());
+        try {
+            citizenDao.append(rowKey, m(e("f3", 123L), e("f4", "blah blah blah")));
+            fail("An attempt was made to append a BigDecimal field with a String value - This should have thrown an exception - It didn't.");
+        } catch (Exception e) {
+            System.out.printf("[edge case] Got error as expected, for type mismatch in columns: %s%n", e.getMessage());
+        }
+        Citizen citizenAfter3Append = citizenDao.get(rowKey);
+        assertNull("Append operation broke 'all or none' semantics", citizenAfter3Append.getF3());
+        citizenDao.append(rowKey, m(e("f3", 123L)));
+        Citizen citizenAfter4Append = citizenDao.get(rowKey);
+        assertEquals("Append operation failed for f3", 123L, (long) citizenAfter4Append.getF3());
+        citizenDao.append(rowKey, "name", " Kalam");
+        assertEquals("Append operation failed for name", "Abdul Kalam", citizenDao.fetchFieldValue(rowKey, "name"));
     }
 
     @Test
     public void testCustom() throws IOException {
         hBaseCluster.createTable("counters", m(e("a", 10)));
-        Connection connection = ConnectionFactory.createConnection(configuration);
         CounterDAO counterDAO = new CounterDAO(connection);
         Counter counter = new Counter("c1");
         for (int i = 1; i <= 10; i++) {
@@ -274,8 +292,8 @@ public class TestsAbstractHBDAO {
     @Test
     public void testVersioning() throws IOException {
         hBaseCluster.createTable("crawls", m(e("a", 3)));
-        CrawlDAO crawlDAO = new CrawlDAO(configuration);
-        CrawlNoVersionDAO crawlNoVersionDAO = new CrawlNoVersionDAO(configuration);
+        CrawlDAO crawlDAO = new CrawlDAO(connection);
+        CrawlNoVersionDAO crawlNoVersionDAO = new CrawlNoVersionDAO(connection);
         final int NUM_VERSIONS = 3;
         Double[] testNumbers = new Double[]{-1.0, Double.MAX_VALUE, Double.MIN_VALUE, 3.14159, 2.71828, 1.0};
         Double[] testNumbersOfRange = Arrays.copyOfRange(testNumbers, testNumbers.length - NUM_VERSIONS, testNumbers.length);
@@ -367,7 +385,7 @@ public class TestsAbstractHBDAO {
     @Test
     public void testNonStringRowkeys() throws IOException {
         hBaseCluster.createTable("employees", m(e("a", 1)));
-        EmployeeDAO employeeDAO = new EmployeeDAO(configuration);
+        EmployeeDAO employeeDAO = new EmployeeDAO(connection);
         Employee ePre = new Employee(100L, "E1", (short) 3, System.currentTimeMillis());
         Long rowKey = employeeDAO.persist(ePre);
         Employee ePost = employeeDAO.get(rowKey);
@@ -376,6 +394,7 @@ public class TestsAbstractHBDAO {
 
     @AfterClass
     public static void tearDown() throws Exception {
+        connection.close();
         hBaseCluster.end();
     }
 }

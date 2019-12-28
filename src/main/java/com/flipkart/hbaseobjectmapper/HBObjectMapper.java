@@ -17,14 +17,21 @@ import java.lang.reflect.*;
 import java.util.*;
 
 /**
- * <p>An <b>object mapper class</b> that helps convert/serialize objects of your bean-like class to HBase's {@link Put} and {@link Result} objects (and vice-versa). Your 'bean-like class' <b>must</b> implement {@link HBRecord} interface and should preferably follow <a href="https://en.wikipedia.org/wiki/JavaBeans#JavaBean_conventions">JavaBeans conventions</a>.
- * <p>This class is for use in:<ul>
+ * <p>An <b>object mapper class</b> that helps<ol>
+ * <li>serialize objects of your <i>bean-like class</i> to HBase's {@link Put} and {@link Result} objects</li>
+ * <li>deserialize HBase's {@link Put} and {@link Result} objects to objects of your <i>bean-like class</i></li>
+ * </ol>
+ * where, your <i>bean-like class</i> is like any other POJO/bean but implements {@link HBRecord} interface.<br>
+ * <br>
+ * <p>
+ * This class is for use in:<ol>
  * <li>MapReduce jobs which <i>read from</i> and/or <i>write to</i> HBase tables</li>
- * <li>Unit-tests for above
- * </ul>
- * <p>This class is thread-safe.
+ * <li>Unit-tests</li>
+ * </ol>
+ * <p><b>This class is thread-safe.</b> This class is designed in a way that only one instance needs to be maintained for the entire lifecycle of your program
  *
  * @see <a href="https://en.wikipedia.org/wiki/Plain_old_Java_object">POJO</a>
+ * @see <a href="https://en.wikipedia.org/wiki/JavaBeans">JavaBeans</a>
  */
 public class HBObjectMapper {
 
@@ -76,6 +83,8 @@ public class HBObjectMapper {
 
     /**
      * Core method that drives deserialization
+     *
+     * @see #convertRecordToMap(HBRecord)
      */
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T convertMapToRecord(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map, Class<T> clazz) {
         Collection<Field> fields = getHBColumnFields0(clazz).values();
@@ -142,7 +151,7 @@ public class HBObjectMapper {
     }
 
     <R extends Serializable & Comparable<R>, T extends HBRecord<R>> WrappedHBTable<R, T> validateHBClass(Class<T> clazz) {
-        Constructor constructor;
+        Constructor<?> constructor;
         try {
             constructor = clazz.getDeclaredConstructor();
         } catch (NoSuchMethodException e) {
@@ -223,7 +232,7 @@ public class HBObjectMapper {
         validateHBColumnField(field);
         Type fieldType = getFieldType(field, false);
         if (fieldType instanceof Class) {
-            Class fieldClazz = (Class) fieldType;
+            Class<?> fieldClazz = (Class<?>) fieldType;
             if (fieldClazz.isPrimitive()) {
                 throw new MappedColumnCantBePrimitiveException(String.format("Field %s in class %s is a primitive of type %s (Primitive data types are not supported as they're not nullable)", field.getName(), field.getDeclaringClass().getName(), fieldClazz.getName()));
             }
@@ -246,6 +255,8 @@ public class HBObjectMapper {
 
     /**
      * Core method that drives serialization
+     *
+     * @see #convertMapToRecord(byte[], NavigableMap, Class)
      */
     @SuppressWarnings("unchecked")
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> convertRecordToMap(HBRecord<R> record) {
@@ -550,10 +561,11 @@ public class HBObjectMapper {
      * @throws CodecException One or more column values is a <code>byte[]</code> that couldn't be deserialized into field type (as defined in your entity class)
      */
     <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(R rowKey, Put put, Class<T> clazz) {
-        if (rowKey == null)
+        if (rowKey == null) {
             return readValueFromPut(put, clazz);
-        else
+        } else {
             return readValueFromRowAndPut(rowKeyToBytes(rowKey, WrappedHBTable.getCodecFlags(clazz)), put, clazz);
+        }
     }
 
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromRowAndPut(byte[] rowKeyBytes, Put put, Class<T> clazz) {
@@ -682,14 +694,14 @@ public class HBObjectMapper {
 
     <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Map<String, Field> getHBColumnFields0(Class<T> clazz) {
         Map<String, Field> mappings = new LinkedHashMap<>();
-        Class thisClass = clazz;
+        Class<?> thisClass = clazz;
         while (thisClass != null && thisClass != Object.class) {
             for (Field field : thisClass.getDeclaredFields()) {
                 if (new WrappedHBColumn(field).isPresent()) {
                     mappings.put(field.getName(), field);
                 }
             }
-            Class parentClass = thisClass.getSuperclass();
+            Class<?> parentClass = thisClass.getSuperclass();
             thisClass = parentClass.isAnnotationPresent(MappedSuperClass.class) ? parentClass : null;
         }
         return mappings;

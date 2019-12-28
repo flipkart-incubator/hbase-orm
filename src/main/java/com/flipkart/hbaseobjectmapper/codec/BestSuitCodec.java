@@ -37,7 +37,7 @@ import java.util.Map;
 public class BestSuitCodec implements Codec {
     public static final String SERIALIZE_AS_STRING = "serializeAsString";
 
-    private static final Map<Class, String> fromBytesMethodNames = ImmutableMap.<Class, String>builder()
+    private static final Map<Class<?>, String> fromBytesMethodNames = ImmutableMap.<Class<?>, String>builder()
             .put(Boolean.class, "toBoolean")
             .put(Short.class, "toShort")
             .put(Integer.class, "toInt")
@@ -48,7 +48,7 @@ public class BestSuitCodec implements Codec {
             .put(BigDecimal.class, "toBigDecimal")
             .build();
 
-    private static final Map<Class, Class> nativeCounterParts = ImmutableMap.<Class, Class>builder()
+    private static final Map<Class<?>, Class<?>> nativeCounterParts = ImmutableMap.<Class<?>, Class<?>>builder()
             .put(Boolean.class, boolean.class)
             .put(Short.class, short.class)
             .put(Long.class, long.class)
@@ -57,19 +57,19 @@ public class BestSuitCodec implements Codec {
             .put(Double.class, double.class)
             .build();
 
-    private static final Map<Class, Method> fromBytesMethods, toBytesMethods;
-    private static final Map<Class, Constructor> constructors;
+    private static final Map<Class<?>, Method> fromBytesMethods, toBytesMethods;
+    private static final Map<Class<?>, Constructor<?>> constructors;
 
     static {
         try {
             fromBytesMethods = new HashMap<>(fromBytesMethodNames.size());
             toBytesMethods = new HashMap<>(fromBytesMethodNames.size());
             constructors = new HashMap<>(fromBytesMethodNames.size());
-            for (Map.Entry<Class, String> e : fromBytesMethodNames.entrySet()) {
+            for (Map.Entry<Class<?>, String> e : fromBytesMethodNames.entrySet()) {
                 Class<?> clazz = e.getKey();
                 String toDataTypeMethodName = e.getValue();
                 Method fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
-                Method toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.containsKey(clazz) ? nativeCounterParts.get(clazz) : clazz);
+                Method toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.getOrDefault(clazz, clazz));
                 Constructor<?> constructor = clazz.getConstructor(String.class);
                 fromBytesMethods.put(clazz, fromBytesMethod);
                 toBytesMethods.put(clazz, toBytesMethod);
@@ -111,9 +111,10 @@ public class BestSuitCodec implements Codec {
      */
     @Override
     public byte[] serialize(Serializable object, Map<String, String> flags) throws SerializationException {
-        if (object == null)
+        if (object == null) {
             return null;
-        Class clazz = object.getClass();
+        }
+        Class<?> clazz = object.getClass();
         if (toBytesMethods.containsKey(clazz)) {
             boolean serializeAsString = isSerializeAsStringTrue(flags);
             try {
@@ -138,12 +139,12 @@ public class BestSuitCodec implements Codec {
     public Serializable deserialize(byte[] bytes, Type type, Map<String, String> flags) throws DeserializationException {
         if (bytes == null)
             return null;
-        if (type instanceof Class && fromBytesMethods.containsKey(type)) {
+        if (type instanceof Class<?> && fromBytesMethods.containsKey(type)) {
             boolean serializeAsString = isSerializeAsStringTrue(flags);
             try {
                 Serializable value;
                 if (serializeAsString) {
-                    Constructor constructor = constructors.get(type);
+                    Constructor<?> constructor = constructors.get(type);
                     value = (Serializable) constructor.newInstance(Bytes.toString(bytes));
                 } else {
                     Method method = fromBytesMethods.get(type);

@@ -5,7 +5,6 @@ import com.google.common.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 
 import java.io.IOException;
@@ -16,15 +15,13 @@ import java.lang.reflect.Type;
 import java.util.*;
 
 /**
- * A <i>Data Access Object</i> class that enables simple random access (read/write) of HBase rows.
- * <b>This class is thread-safe.</b>
+ * A <i>Data Access Object</i> (DAO) class that enables simple random access (read/write) of HBase rows.
+ * <br><br>
+ * <b>This class is thread-safe.</b> This is designed such that only one instance of each DAO class needs to be maintained for the entire lifecycle of your program.
  *
  * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
  * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
  * @see <a href="https://en.wikipedia.org/wiki/Data_access_object">Data access object</a>
- * @see Connection#getTable(TableName)
- * @see Table
- * @see HTable
  */
 @SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T extends HBRecord<R>> {
@@ -40,7 +37,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Constructs a data access object using your custom {@link HBObjectMapper}
      * <p>
      * <br>
-     * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Configuration)}
+     * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Connection)}
      *
      * @param connection     HBase Connection
      * @param hbObjectMapper Your custom {@link HBObjectMapper}
@@ -68,6 +65,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Constructs a data access object using your custom {@link HBObjectMapper}
      * <p>
+     * <br>
      * <b>Note: </b>If you want to use the default {@link HBObjectMapper}, just use the constructor {@link #AbstractHBDAO(Configuration)}
      *
      * @param configuration  Hadoop configuration
@@ -79,10 +77,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         this(ConnectionFactory.createConnection(configuration), hbObjectMapper);
     }
 
-
     /**
      * Constructs a data access object using your custom codec
      * <p>
+     * <br>
      * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Connection)}
      *
      * @param connection HBase Connection
@@ -96,6 +94,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Constructs a data access object using your custom codec
      * <p>
+     * <br>
      * <b>Note: </b>If you want to use the default codec, just use the constructor {@link #AbstractHBDAO(Configuration)}
      *
      * @param configuration Hadoop configuration
@@ -111,10 +110,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Constructs a data access object
      *
      * @param connection HBase Connection
-     * @throws IOException           Exceptions thrown by HBase
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
-    protected AbstractHBDAO(Connection connection) throws IOException {
+    protected AbstractHBDAO(Connection connection) {
         this(connection, (Codec) null);
     }
 
@@ -183,7 +181,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * @param gets List of {@link Get} objects for which which rows have to be fetched
+     * @param gets List of {@link Get} objects for which rows have to be fetched
      * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
      */
@@ -201,10 +199,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
 
 
     /**
-     * Get specified number of versions of rows from HBase table by array of row keys (This method is a bulk variant of {@link #get(Serializable, int)} method)
+     * Get specified number of versions of rows from HBase table by array of row keys (This method is a bulk variant of {@link #get(Serializable, int) get(R, int)} method)
      *
      * @param rowKeys            Row keys to fetch
-     * @param numVersionsToFetch Number of versions of columns to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return Array of HBase rows, deserialized as object of your bean-like class (that implements {@link HBRecord})
      * @throws IOException When HBase call fails
      */
@@ -224,7 +222,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * Get rows from HBase table by array of row keys (This method is a bulk variant of {@link #get(Serializable)} method)
+     * Get records by array of row keys (This method is a bulk variant of {@link #get(Serializable) get(R)} method)
      *
      * @param rowKeys Row keys to fetch
      * @return Array of HBase rows, deserialized as object of your bean-like class (that implements {@link HBRecord})
@@ -238,7 +236,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Get specified number of versions of rows from HBase table by list of row keys (This method is a multi-version variant of {@link #get(List)} method)
      *
      * @param rowKeys            Row keys to fetch
-     * @param numVersionsToFetch Number of versions of columns to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return Array of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
      */
@@ -258,7 +256,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * Get rows from HBase table by list of row keys (This method is a bulk variant of {@link #get(Serializable)} method)
+     * Get records by list of row keys (This method is a bulk variant of {@link #get(Serializable) get(R)} method)
      *
      * @param rowKeys Row keys to fetch
      * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
@@ -269,16 +267,57 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * Get specified number of versions of rows from HBase table by a range of row keys (start and end) - this is a multi-version variant of {@link #get(Serializable, Serializable)}
+     * Get specified number of versions of rows from HBase table by a range of row keys - start key (inclusive) to end key (exclusive)
+     * <br><br>
+     * This method is a multi-version variant of {@link #get(Serializable, Serializable) get(R, R)}
+     * <br><br>
+     * <b>Caution:</b> If you expect large number or rows for given start and end row keys, do <u>not</u> use this method. Use the iterable variant {@link #records(Serializable, boolean, Serializable, boolean, int, int) records(R, boolean, R, boolean, int, int)} instead.
      *
      * @param startRowKey        Row start
      * @param endRowKey          Row end
-     * @param numVersionsToFetch Number of versions to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
      * @throws IOException When HBase call fails
      */
     public List<T> get(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
-        Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey)).readVersions(numVersionsToFetch);
+        Scan scan = new Scan()
+                .withStartRow(toBytes(startRowKey))
+                .withStopRow(toBytes(endRowKey))
+                .readVersions(numVersionsToFetch);
+        return get(scan);
+    }
+
+    /**
+     * Get specified number of versions of rows from HBase table by a range of row keys - start key (inclusive) to end key (exclusive)
+     * <br><br>
+     * <b>Caution:</b> If you expect large number or rows for given start and end row keys, do <u>not</u> use this method. Use the iterable variant {@link #records(Serializable, boolean, Serializable, boolean, int, int) records(R, boolean, R, boolean, int, int)} instead.
+     *
+     * @param startRowKey        Row start
+     * @param endRowKey          Row end
+     * @param startRowInclusive  whether we should include the start row when scan?
+     * @param endRowInclusive    whether we should include the end row when scan?
+     * @param numVersionsToFetch Number of versions to be retrieved
+     * @return List of rows corresponding to row keys passed, deserialized as objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public List<T> get(R startRowKey, boolean startRowInclusive, R endRowKey, boolean endRowInclusive, int numVersionsToFetch) throws IOException {
+        Scan scan = new Scan()
+                .withStartRow(toBytes(startRowKey), startRowInclusive)
+                .withStopRow(toBytes(endRowKey), endRowInclusive)
+                .readVersions(numVersionsToFetch);
+        return get(scan);
+    }
+
+    /**
+     * Get records from HBase table for a given {@link Scan} object.
+     * <br><br>
+     * <b>Caution:</b> If you expect large number or rows for given scan criteria, do <u>not</u> use this method. Use the iterable variant {@link #records(Scan)} instead.
+     *
+     * @param scan HBase's scan object
+     * @return Records corresponding to {@link Scan} object passed, deserialized as objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public List<T> get(Scan scan) throws IOException {
         List<T> records = new ArrayList<>();
         try (Table table = getHBaseTable();
              ResultScanner scanner = table.getScanner(scan)) {
@@ -287,6 +326,129 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             }
         }
         return records;
+    }
+
+    /**
+     * Get records whose row keys match provided prefix
+     * <br><br>
+     * <b>Caution:</b> If you expect large number or rows for given row key prefix, do <u>not</u> use this method. Use the iterable variant {@link #recordsByPrefix(byte[], int)} instead.
+     *
+     * @param rowPrefix          Prefix to scan for
+     * @param numVersionsToFetch Number of versions to be retrieved
+     * @return Records corresponding to provided prefix, deserialized as list of objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public List<T> getByPrefix(byte[] rowPrefix, int numVersionsToFetch) throws IOException {
+        Scan scan = new Scan()
+                .setRowPrefixFilter(rowPrefix)
+                .readVersions(numVersionsToFetch);
+        return get(scan);
+    }
+
+    /**
+     * Get records whose row keys match provided prefix
+     * <br><br>
+     * <b>Caution:</b> If you expect large number or rows for given row key prefix, do <u>not</u> use this method. Use the iterable variant {@link #recordsByPrefix(byte[])} instead.
+     *
+     * @param rowPrefix Prefix to scan for
+     * @return Records corresponding to {@link Scan} object passed, deserialized as objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public List<T> getByPrefix(byte[] rowPrefix) throws IOException {
+        return getByPrefix(rowPrefix, 1);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching given {@link Scan} object
+     *
+     * @param scan HBase's scan object
+     * @return An iterable to iterate over records matching the scan criteria
+     * @throws IOException When HBase call fails
+     */
+    public Records<T> records(Scan scan) throws IOException {
+        return new Records<>(connection, hbObjectMapper, hbRecordClass, hbTable.getName(), scan);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching given row key prefix
+     *
+     * @param rowPrefix Prefix to scan for
+     * @return An iterable to iterate over records matching the scan criteria
+     * @throws IOException When HBase call fails
+     */
+    public Records<T> recordsByPrefix(byte[] rowPrefix) throws IOException {
+        return recordsByPrefix(rowPrefix, 1);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching given row key prefix and fetch specific number of versions
+     *
+     * @param rowPrefix          Prefix to scan for
+     * @param numVersionsToFetch Number of versions to be retrieved
+     * @return An iterable over objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public Records<T> recordsByPrefix(byte[] rowPrefix, int numVersionsToFetch) throws IOException {
+        Scan scan = new Scan()
+                .setRowPrefixFilter(rowPrefix)
+                .readVersions(numVersionsToFetch);
+        return records(scan);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching range of row keys (start to end)
+     *
+     * @param startRowKey Row start (inclusive)
+     * @param endRowKey   Row end (exclusive)
+     * @return An iterable over objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public Iterable<T> records(R startRowKey, R endRowKey) throws IOException {
+        Scan scan = new Scan()
+                .withStartRow(toBytes(startRowKey))
+                .withStopRow(toBytes(endRowKey));
+        return records(scan);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching range of row keys (start to end) and other criteria
+     * <br><br>
+     * <b>Note:</b> If you need advanced scanning, consider using {@link #records(Scan)}
+     *
+     * @param startRowKey        Row start
+     * @param startRowInclusive  whether we should include the start row when scan
+     * @param endRowKey          Row end
+     * @param endRowInclusive    whether we should include the end row when scan
+     * @param numVersionsToFetch Number of versions to be retrieved
+     * @param numRowsForCaching  Number of rows for caching (higher values are faster but take more memory)
+     * @return An iterable over objects of your bean-like class
+     * @throws IOException When HBase call fails
+     * @see <a href="https://hbase.apache.org/apidocs/org/apache/hadoop/hbase/client/Scan.html#setCaching-int-">HBase Scan caching</a>
+     */
+    public Records<T> records(R startRowKey, boolean startRowInclusive, R endRowKey, boolean endRowInclusive, int numVersionsToFetch, int numRowsForCaching) throws IOException {
+        Scan scan = new Scan()
+                .withStartRow(toBytes(startRowKey), startRowInclusive)
+                .withStopRow(toBytes(endRowKey), endRowInclusive)
+                .readVersions(numVersionsToFetch)
+                .setCaching(numRowsForCaching);
+        return records(scan);
+    }
+
+    /**
+     * Get an iterable to iterate over records matching range of row keys (start to end) and other criteria
+     *
+     * @param startRowKey        Row start
+     * @param endRowKey          Row end
+     * @param numVersionsToFetch Number of versions to be retrieved
+     * @return An iterable over objects of your bean-like class
+     * @throws IOException When HBase call fails
+     */
+    public Records<T> records(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
+        Scan scan = new Scan()
+                .withStartRow(toBytes(startRowKey))
+                .withStopRow(toBytes(endRowKey))
+                .readVersions(numVersionsToFetch);
+        return records(scan);
     }
 
     private WrappedHBColumn validateAndGetLongColumn(String fieldName) {
@@ -441,7 +603,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * Get specified number of versions of rows from HBase table by a range of row keys (start to end)
+     * Get specified number of versions of rows by a range of row keys (start to end)
      *
      * @param startRowKey Row start
      * @param endRowKey   Row end
@@ -628,7 +790,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param rowKey             Row key to reference HBase row
      * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param numVersionsToFetch Number of versions of column to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return {@link NavigableMap} of timestamps and values of the column (boxed), <code>null</code> if row with given rowKey doesn't exist or such field doesn't exist for the row
      * @throws IOException When HBase call fails
      */
@@ -667,7 +829,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @param startRowKey        Start row key (scan start)
      * @param endRowKey          End row key (scan end)
      * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param numVersionsToFetch Number of versions of column to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return Map of row key and column values (versioned)
      * @throws IOException When HBase call fails
      */
@@ -705,7 +867,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param rowKeys            Array of row keys to fetch
      * @param fieldName          Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
-     * @param numVersionsToFetch Number of versions of column to fetch
+     * @param numVersionsToFetch Number of versions to be retrieved
      * @return Map of row key and column values (versioned)
      * @throws IOException When HBase call fails
      */
@@ -729,8 +891,13 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         return map;
     }
 
-    private byte[] toBytes(R rowKey) {
+    /**
+     * Convert typed row key into a byte array
+     *
+     * @param rowKey Row key, as used in your code
+     * @return Byte array corresponding to HBase row key
+     */
+    public byte[] toBytes(R rowKey) {
         return hbObjectMapper.rowKeyToBytes(rowKey, hbTable.getCodecFlags());
     }
-
 }

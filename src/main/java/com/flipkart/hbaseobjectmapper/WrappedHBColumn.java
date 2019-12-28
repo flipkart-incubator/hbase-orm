@@ -6,6 +6,7 @@ import com.flipkart.hbaseobjectmapper.exceptions.DuplicateCodecFlagForColumnExce
 import com.flipkart.hbaseobjectmapper.exceptions.FieldNotMappedToHBaseColumnException;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
 class WrappedHBColumn {
     private final String family, column;
     private final boolean multiVersioned, singleVersioned;
-    private final Class annotationClass;
+    private final Class<? extends Annotation> annotationClass;
     private final Map<String, String> codecFlags;
     private final Field field;
 
@@ -49,7 +50,7 @@ class WrappedHBColumn {
             codecFlags = toMap(hbColumnMultiVersion.codecFlags());
         } else {
             if (throwExceptionIfNonHBColumn) {
-                throw new FieldNotMappedToHBaseColumnException((Class<HBRecord>) field.getDeclaringClass(), field.getName());
+                throw new FieldNotMappedToHBaseColumnException(field.getDeclaringClass(), field.getName());
             }
             family = null;
             column = null;
