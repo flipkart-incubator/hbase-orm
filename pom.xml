@@ -35,11 +35,22 @@
             <organization>Flipkart</organization>
             <organizationUrl>https://www.flipkart.com</organizationUrl>
         </developer>
+        <developer>
+            <id>amrith92</id>
+            <name>Shroff Amrith Nayak</name>
+            <email>amrith92(plus)gh(at)gmail(dot)com</email>
+            <roles>
+                <role>design</role>
+                <role>development</role>
+            </roles>
+            <organization>Flipkart</organization>
+            <organizationUrl>https://www.flipkart.com</organizationUrl>
+        </developer>
     </developers>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <version.hbase>2.2.1</version.hbase>
+        <version.hbase>2.2.3.ACROMANTULA-SNAPSHOT</version.hbase>
         <jackson-version>2.11.0</jackson-version>
     </properties>
     <distributionManagement>
@@ -48,6 +59,24 @@
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
+    <repositories>
+        <repository>
+        <id>flipkart.artifactory</id>
+        <name>Flipkart Artifactory</name>
+        <url>http://artifactory.fkinternal.com/artifactory/v1.0/artifacts/libs-release-local</url>
+        <snapshots>
+            <enabled>false</enabled>
+        </snapshots>
+    </repository>
+    <repository>
+        <id>flipkart.artifactory.snapshots</id>
+        <name>Flipkart Artifactory (Snapshots)</name>
+        <url>http://artifactory.fkinternal.com/artifactory/v1.0/artifacts/libs-snapshots-local</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+    </repositories>
     <dependencies>
         <!-- Application dependencies -->
         <dependency>
