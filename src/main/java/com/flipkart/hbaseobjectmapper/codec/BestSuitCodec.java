@@ -6,16 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.hbaseobjectmapper.Flag;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
-import com.flipkart.hbaseobjectmapper.exceptions.BadHBaseLibStateException;
-import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -36,50 +31,6 @@ import java.util.Map;
 
 public class BestSuitCodec implements Codec {
     public static final String SERIALIZE_AS_STRING = "serializeAsString";
-
-    private static final Map<Class<?>, String> fromBytesMethodNames = ImmutableMap.<Class<?>, String>builder()
-            .put(Boolean.class, "toBoolean")
-            .put(Short.class, "toShort")
-            .put(Integer.class, "toInt")
-            .put(Long.class, "toLong")
-            .put(Float.class, "toFloat")
-            .put(Double.class, "toDouble")
-            .put(String.class, "toString")
-            .put(BigDecimal.class, "toBigDecimal")
-            .build();
-
-    private static final Map<Class<?>, Class<?>> nativeCounterParts = ImmutableMap.<Class<?>, Class<?>>builder()
-            .put(Boolean.class, boolean.class)
-            .put(Short.class, short.class)
-            .put(Long.class, long.class)
-            .put(Integer.class, int.class)
-            .put(Float.class, float.class)
-            .put(Double.class, double.class)
-            .build();
-
-    private static final Map<Class<?>, Method> fromBytesMethods, toBytesMethods;
-    private static final Map<Class<?>, Constructor<?>> constructors;
-
-    static {
-        try {
-            fromBytesMethods = new HashMap<>(fromBytesMethodNames.size());
-            toBytesMethods = new HashMap<>(fromBytesMethodNames.size());
-            constructors = new HashMap<>(fromBytesMethodNames.size());
-            for (Map.Entry<Class<?>, String> e : fromBytesMethodNames.entrySet()) {
-                Class<?> clazz = e.getKey();
-                String toDataTypeMethodName = e.getValue();
-                Method fromBytesMethod = Bytes.class.getDeclaredMethod(toDataTypeMethodName, byte[].class);
-                Method toBytesMethod = Bytes.class.getDeclaredMethod("toBytes", nativeCounterParts.getOrDefault(clazz, clazz));
-                Constructor<?> constructor = clazz.getConstructor(String.class);
-                fromBytesMethods.put(clazz, fromBytesMethod);
-                toBytesMethods.put(clazz, toBytesMethod);
-                constructors.put(clazz, constructor);
-            }
-        } catch (Exception ex) {
-            throw new BadHBaseLibStateException(ex);
-        }
-    }
-
 
     private final ObjectMapper objectMapper;
 
@@ -115,20 +66,35 @@ public class BestSuitCodec implements Codec {
             return null;
         }
         Class<?> clazz = object.getClass();
-        if (toBytesMethods.containsKey(clazz)) {
-            boolean serializeAsString = isSerializeAsStringTrue(flags);
-            try {
-                Method toBytesMethod = toBytesMethods.get(clazz);
-                return serializeAsString ? Bytes.toBytes(String.valueOf(object)) : (byte[]) toBytesMethod.invoke(null, object);
-            } catch (Exception e) {
-                throw new SerializationException(String.format("Could not serialize value of type %s using HBase's native methods", clazz.getName()), e);
+        if (isSerializeAsStringTrue(flags)) {
+            object = String.valueOf(object);
+            clazz = String.class;
+        }
+        try {
+            if (clazz == String.class) {
+                return Bytes.toBytes((String) object);
+            } else if (clazz == Integer.class) {
+                return Bytes.toBytes((int) object);
+            } else if (clazz == Short.class) {
+                return Bytes.toBytes((short) object);
+            } else if (clazz == Long.class) {
+                return Bytes.toBytes((long) object);
+            } else if (clazz == Float.class) {
+                return Bytes.toBytes((float) object);
+            } else if (clazz == Double.class) {
+                return Bytes.toBytes((double) object);
+            } else if (clazz == BigDecimal.class) {
+                return Bytes.toBytes((BigDecimal) object);
+            } else if (clazz == Boolean.class) {
+                return Bytes.toBytes((boolean) object);
             }
-        } else {
-            try {
-                return objectMapper.writeValueAsBytes(object);
-            } catch (Exception e) {
-                throw new SerializationException("Could not serialize object to JSON using Jackson", e);
-            }
+        } catch (Exception e) {
+            throw new SerializationException(String.format("Could not serialize value of type %s using HBase's native methods", clazz.getName()), e);
+        }
+        try {
+            return objectMapper.writeValueAsBytes(object);
+        } catch (Exception e) {
+            throw new SerializationException("Could not serialize object to JSON using Jackson", e);
         }
     }
 
@@ -139,31 +105,61 @@ public class BestSuitCodec implements Codec {
     public Serializable deserialize(byte[] bytes, Type type, Map<String, String> flags) throws DeserializationException {
         if (bytes == null)
             return null;
-        if (type instanceof Class<?> && fromBytesMethods.containsKey(type)) {
-            boolean serializeAsString = isSerializeAsStringTrue(flags);
-            try {
-                Serializable value;
-                if (serializeAsString) {
-                    Constructor<?> constructor = constructors.get(type);
-                    value = (Serializable) constructor.newInstance(Bytes.toString(bytes));
-                } else {
-                    Method method = fromBytesMethods.get(type);
-                    value = (Serializable) method.invoke(null, new Object[]{bytes});
+        boolean serializeAsString = isSerializeAsStringTrue(flags);
+        if (type instanceof Class) {
+            if (serializeAsString) {
+                try {
+                    String string = Bytes.toString(bytes);
+                    if (type == Integer.class) {
+                        return Integer.valueOf(string);
+                    } else if (type == Long.class) {
+                        return Long.valueOf(string);
+                    } else if (type == Short.class) {
+                        return Short.valueOf(string);
+                    } else if (type == Float.class) {
+                        return Float.valueOf(string);
+                    } else if (type == Double.class) {
+                        return Double.valueOf(string);
+                    } else if (type == BigDecimal.class) {
+                        return new BigDecimal(string);
+                    } else if (type == Boolean.class) {
+                        return Boolean.valueOf(string);
+                    }
+                } catch (Exception e) {
+                    throw new DeserializationException("Could not deserialize byte array into an object using HBase's native methods (note: serialize as string is on)", e);
                 }
-                return value;
-            } catch (Exception e) {
-                throw new DeserializationException("Could not deserialize byte array into an object using HBase's native methods", e);
-            }
-        } else {
-            JavaType javaType = null;
-            try {
-                javaType = objectMapper.constructType(type);
-                return objectMapper.readValue(bytes, javaType);
-            } catch (Exception e) {
-                throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson%n(Jackson resolved type = %s)", type, javaType), e);
+            } else {
+                try {
+                    if (type == String.class) {
+                        return Bytes.toString(bytes);
+                    } else if (type == Integer.class) {
+                        return Bytes.toInt(bytes);
+                    } else if (type == Long.class) {
+                        return Bytes.toLong(bytes);
+                    } else if (type == Short.class) {
+                        return Bytes.toShort(bytes);
+                    } else if (type == Float.class) {
+                        return Bytes.toFloat(bytes);
+                    } else if (type == Double.class) {
+                        return Bytes.toDouble(bytes);
+                    } else if (type == BigDecimal.class) {
+                        return Bytes.toBigDecimal(bytes);
+                    } else if (type == Boolean.class) {
+                        return Bytes.toBoolean(bytes);
+                    }
+                } catch (Exception e) {
+                    throw new DeserializationException("Could not deserialize byte array into an object using HBase's native methods", e);
+                }
             }
         }
-
+        JavaType javaType = null;
+        try {
+            javaType = objectMapper.constructType(type);
+            return objectMapper.readValue(bytes, javaType);
+        } catch (
+                Exception e) {
+            throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson%n(Jackson resolved type = %s)", type, javaType), e);
+        }
     }
 
     /*
