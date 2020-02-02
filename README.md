@@ -72,7 +72,7 @@ That is,
 * The above class `Citizen` represents the HBase table `citizens`, using the `@HBTable` annotation.
 * Logics for conversion of HBase row key to member variables of `Citizen` objects and vice-versa are implemented using `parseRowKey` and `composeRowKey` methods respectively.
 * The data type representing row key is the type parameter to `HBRecord` generic interface (in above case, `String`).
- * Note that `String` is both `Comparable` and `Serializable`.
+  * Note that `String` is both `Comparable` and `Serializable`.
 * Names of columns and their column families are specified using `@HBColumn` or `@HBColumnMultiVersion` annotations.
 * The class may contain fields of simple data types (e.g. `String`, `Integer`), generic data types (e.g. `Map`, `List`), custom class (e.g. `Dependents`) or even generics of custom class (e.g. `List<Dependent>`) 
 * The `@HBColumnMultiVersion` annotation allows you to map multiple versions of column in a `NavigableMap<Long, ?>`. In above example, field `phoneNumber` is mapped to column `phone_number` within the column family `tracked` (which is configured for multiple versions)
@@ -286,6 +286,32 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 
 **Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical (Hibernate-like) ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if that's your intent, I suggest you use [Apache Phoenix](https://phoenix.apache.org/).
 
+
+## Using this library for DDL operations
+The provided `HBAdmin` class helps you programatically create/delete tables.
+
+You may instantiate the class using `Connection` object:
+
+```java
+HBAdmin hbAdmin = new HBAdmin(connection);
+```
+
+Once instantiated, you may do the following DDL operations:
+
+```java
+hbAdmin.createTable(Citizen.class); 
+// Above statement creates table with name and column families specification as per the @HBTable annotation on the Citizen class
+
+hbAdmin.tableExists(Citizen.class); // returns true
+
+hbAdmin.disableTable(Citizen.class);
+
+hbAdmin.deleteTable(Citizen.class);
+
+```
+
+Note that **all** of the above are very heavy and time-consuming operations.
+
 ## Using this library in MapReduce jobs
 
 ### Mapper
@@ -386,17 +412,18 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
   <groupId>com.flipkart</groupId>
   <artifactId>hbase-object-mapper</artifactId>
-  <version>1.13</version>
+  <version>1.14</version>
 </dependency>
 ```
 
 See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](https://search.maven.org/search?q=g:com.flipkart%20AND%20a:hbase-object-mapper&core=gav) or
 [com.flipkart:hbase-object-mapper on **MVN Repository**](https://mvnrepository.com/artifact/com.flipkart/hbase-object-mapper).
+
 ## How to build?
 To build this project, follow below simple steps:
 
  1. Do a `git clone` of this repository
- 2. Checkout latest stable version `git checkout v1.13`
+ 2. Checkout latest stable version `git checkout v1.14`
  3. Execute `mvn clean install` from shell
 
 ### Please note:
@@ -419,6 +446,6 @@ If you intend to request a feature or report a bug, you may use [Github Issues f
 
 ## License
 
-Copyright 2019 Flipkart Internet Pvt Ltd.
+Copyright 2020 Flipkart Internet Pvt Ltd.
 
 Licensed under the [Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or it's source code except in compliance with the License.
