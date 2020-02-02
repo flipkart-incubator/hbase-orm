@@ -9,7 +9,6 @@ import java.util.TreeMap;
 @HBTable(name = "crawls", families = {@Family(name = "a", versions = 10)})
 @ToString
 public class Crawl implements HBRecord<String> {
-    @HBRowKey
     String key;
 
     @HBColumnMultiVersion(family = "a", column = "f1")

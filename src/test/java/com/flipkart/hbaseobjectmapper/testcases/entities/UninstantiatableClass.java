@@ -5,7 +5,6 @@ import com.flipkart.hbaseobjectmapper.*;
 @SuppressWarnings("unused")
 @HBTable(name = "blah", families = {@Family(name = "main")})
 public class UninstantiatableClass implements HBRecord<String> {
-    @HBRowKey
     private Integer uid;
     @HBColumn(family = "main", column = "name")
     private String name;

@@ -12,6 +12,11 @@ public class LiteralsUtil {
     }
 
     @SafeVarargs
+    public static <T> List<T> l(T... a) {
+        return Arrays.asList(a);
+    }
+
+    @SafeVarargs
     public static <T> Set<T> s(T... a) {
         return Sets.newHashSet(a);
     }

@@ -1,9 +1,7 @@
 package com.flipkart.hbaseobjectmapper;
 
 
-import com.flipkart.hbaseobjectmapper.exceptions.BothHBColumnAnnotationsPresentException;
-import com.flipkart.hbaseobjectmapper.exceptions.DuplicateCodecFlagForColumnException;
-import com.flipkart.hbaseobjectmapper.exceptions.FieldNotMappedToHBaseColumnException;
+import com.flipkart.hbaseobjectmapper.exceptions.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.lang.annotation.Annotation;
@@ -26,7 +24,6 @@ class WrappedHBColumn {
         this(field, false);
     }
 
-    @SuppressWarnings("unchecked")
     WrappedHBColumn(Field field, boolean throwExceptionIfNonHBColumn) {
         this.field = field;
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);

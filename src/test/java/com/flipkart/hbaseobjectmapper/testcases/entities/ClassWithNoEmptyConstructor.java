@@ -5,7 +5,6 @@ import com.flipkart.hbaseobjectmapper.*;
 @SuppressWarnings({"FieldCanBeLocal", "CanBeFinal", "unused"})
 @HBTable(name = "blah", families = {@Family(name = "a")})
 public class ClassWithNoEmptyConstructor implements HBRecord<String> {
-    @HBRowKey
     protected String key = "key";
 
     @Override

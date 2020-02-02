@@ -10,7 +10,6 @@ import lombok.ToString;
 @EqualsAndHashCode
 @HBTable(name = "students", families = {@Family(name = "a")}, rowKeyCodecFlags = {@Flag(name = BestSuitCodec.SERIALIZE_AS_STRING, value = "true")})
 public class Student implements HBRecord<Integer> {
-    @HBRowKey
     private Integer studentId;
 
     @HBColumn(family = "a", column = "name")

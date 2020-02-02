@@ -1,14 +1,9 @@
 package com.flipkart.hbaseobjectmapper;
 
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.*;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.Iterator;
 
 /**

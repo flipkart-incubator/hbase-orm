@@ -22,10 +22,8 @@ This library enables to you represent your HBase table as a *bean-like class*, a
 )
 public class Citizen implements HBRecord<String> {
 
-  @HBRowKey
   private String countryCode;
 
-  @HBRowKey
   private Integer uid;
 
   @HBColumn(family = "main", column = "name")
@@ -74,42 +72,41 @@ That is,
 * The above class `Citizen` represents the HBase table `citizens`, using the `@HBTable` annotation.
 * Logics for conversion of HBase row key to member variables of `Citizen` objects and vice-versa are implemented using `parseRowKey` and `composeRowKey` methods respectively.
 * The data type representing row key is the type parameter to `HBRecord` generic interface (in above case, `String`).
-* Fields that form row key are annotated with `@HBRowKey` (just a marker annotation).
+ * Note that `String` is both `Comparable` and `Serializable`.
 * Names of columns and their column families are specified using `@HBColumn` or `@HBColumnMultiVersion` annotations.
 * The class may contain fields of simple data types (e.g. `String`, `Integer`), generic data types (e.g. `Map`, `List`), custom class (e.g. `Dependents`) or even generics of custom class (e.g. `List<Dependent>`) 
 * The `@HBColumnMultiVersion` annotation allows you to map multiple versions of column in a `NavigableMap<Long, ?>`. In above example, field `phoneNumber` is mapped to column `phone_number` within the column family `tracked` (which is configured for multiple versions)
-
-See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Citizen.java) and [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Employee.java) for detailed examples. Specifically, [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Employee.java) demonstrates using "column inheritance" of this library, a useful feature if you have many HBase tables with common set of columns.
 
 Alternatively, you can model your class as below:
 
 ```java
 ...
-public class Citizen implements HBRecord<CitizenKey> {
-
-  public static class CitizenKey {
+class CitizenKey implements Serializable, Comparable<CitizenKey> {
     String countryCode;
     Integer uid;
-  }
-  
-  @HBRowKey
-  private CitizenKey rowKey;
-  
-  ...
-  
-  @Override
-  public CitizenKey composeRowKey() {
-    return return rowKey;
-  }
 
-  @Override
-  public void parseRowKey(CitizenKey rowKey) {
-    this.rowKey = rowKey;
-  }  
-  ...
+    @Override
+    public int compareTo(CitizenKey key) {
+        // your custom logic involving countryCode and uid
+    }
+}
+
+public class Citizen implements HBRecord<CitizenKey> {
+
+    private CitizenKey rowKey;
+
+    @Override
+    public CitizenKey composeRowKey() {
+        return rowKey;
+    }
+
+    @Override
+    public void parseRowKey(CitizenKey rowKey) {
+        this.rowKey = rowKey;
+    }
 }
 ```
-
+See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Citizen.java) and [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Employee.java) for detailed examples. Specifically, [Employee.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/entities/Employee.java) demonstrates using "column inheritance" of this library, a useful feature if you have many HBase tables with common set of columns.
 
 ### Serialization / Deserialization mechanism
 
@@ -219,7 +216,6 @@ try (Records<Citizen> citizens = citizenDao.records(scan)) {
   }
 }
 ```
-
 
 Fetch specific field(s) for given row key(s):
 

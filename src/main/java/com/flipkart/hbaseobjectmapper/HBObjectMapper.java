@@ -28,7 +28,9 @@ import java.util.*;
  * <li>MapReduce jobs which <i>read from</i> and/or <i>write to</i> HBase tables</li>
  * <li>Unit-tests</li>
  * </ol>
- * <p><b>This class is thread-safe.</b> This class is designed in a way that only one instance needs to be maintained for the entire lifecycle of your program
+ * <p><b>This class is thread-safe.</b>
+ * <br><br>
+ * This class is designed in such a way that only one instance needs to be maintained for the entire lifecycle of your program.
  *
  * @see <a href="https://en.wikipedia.org/wiki/Plain_old_Java_object">POJO</a>
  * @see <a href="https://en.wikipedia.org/wiki/JavaBeans">JavaBeans</a>
@@ -160,17 +162,9 @@ public class HBObjectMapper {
         if (!Modifier.isPublic(constructor.getModifiers())) {
             throw new EmptyConstructorInaccessibleException(String.format("Empty constructor of class %s is inaccessible. It needs to be public.", clazz.getName()));
         }
-        int numOfHBColumns = 0, numOfHBRowKeys = 0;
+        int numOfHBColumns = 0;
         WrappedHBTable<R, T> hbTable = new WrappedHBTable<>(clazz);
         Set<FamilyAndColumn> columns = new HashSet<>(clazz.getDeclaredFields().length, 1.0f);
-        for (Field field : clazz.getDeclaredFields()) {
-            if (field.isAnnotationPresent(HBRowKey.class)) {
-                numOfHBRowKeys++;
-            }
-        }
-        if (numOfHBRowKeys == 0) {
-            throw new MissingHBRowKeyFieldsException(clazz);
-        }
         Map<String, Field> hbColumnFields = getHBColumnFields0(clazz);
         for (Field field : hbColumnFields.values()) {
             WrappedHBColumn hbColumn = new WrappedHBColumn(field);

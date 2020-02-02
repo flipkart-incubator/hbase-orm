@@ -7,7 +7,6 @@ import com.flipkart.hbaseobjectmapper.*;
 public class Singleton implements HBRecord<String> {
     private static Singleton ourInstance = new Singleton();
 
-    @HBRowKey
     protected String key = "key";
 
     @HBColumn(family = "f", column = "c")

@@ -1,6 +1,5 @@
 package com.flipkart.hbaseobjectmapper.testcases.daos;
 
-
 import com.flipkart.hbaseobjectmapper.AbstractHBDAO;
 import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
 import org.apache.hadoop.hbase.client.Connection;

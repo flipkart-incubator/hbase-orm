@@ -9,7 +9,6 @@ public class ClassesWithFieldIncompatibleWithHBColumnMultiVersion {
     @SuppressWarnings("unused")
     @HBTable(name = "blah", families = {@Family(name = "f")})
     public static class NotMap implements HBRecord<String> {
-        @HBRowKey
         protected String key = "key";
 
         @Override
@@ -29,7 +28,6 @@ public class ClassesWithFieldIncompatibleWithHBColumnMultiVersion {
     @SuppressWarnings("unused")
     @HBTable(name = "blah", families = {@Family(name = "f")})
     public static class NotNavigableMap implements HBRecord<String> {
-        @HBRowKey
         protected String key = "key";
 
         @Override
@@ -49,7 +47,6 @@ public class ClassesWithFieldIncompatibleWithHBColumnMultiVersion {
     @SuppressWarnings("unused")
     @HBTable(name = "blah", families = {@Family(name = "f")})
     public static class EntryKeyNotLong implements HBRecord<String> {
-        @HBRowKey
         protected String key = "key";
 
         @Override

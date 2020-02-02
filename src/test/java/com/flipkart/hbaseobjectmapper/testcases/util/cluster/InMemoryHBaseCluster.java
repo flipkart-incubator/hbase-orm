@@ -1,13 +1,10 @@
 package com.flipkart.hbaseobjectmapper.testcases.util.cluster;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.client.Connection;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.*;
 
 import static com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster.USE_REAL_HBASE;
@@ -18,6 +15,7 @@ public class InMemoryHBaseCluster implements HBaseCluster {
     public static final String INMEMORY_CLUSTER_START_TIMEOUT = "INMEMORY_CLUSTER_START_TIMEOUT";
     private final HBaseTestingUtility utility;
     private final ExecutorService executorService;
+    private Connection connection;
     private final long timeout;
 
     public InMemoryHBaseCluster() {
@@ -30,15 +28,10 @@ public class InMemoryHBaseCluster implements HBaseCluster {
         this.timeout = timeout;
     }
 
-    public Configuration init() throws IOException {
+    public Connection start() throws IOException {
         try {
             System.out.println("Starting in-memory HBase test cluster");
-            executorService.submit(new Callable<MiniHBaseCluster>() {
-                @Override
-                public MiniHBaseCluster call() throws Exception {
-                    return utility.startMiniCluster(1, 1, false);
-                }
-            }).get(timeout, TimeUnit.SECONDS);
+            executorService.submit(() -> utility.startMiniCluster(1, 1, false)).get(timeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             throw new IllegalStateException(String.format(
                     "Starting an 'in-memory HBase cluster' took much longer than expected time of %d seconds. Aborting.%n" +
@@ -50,25 +43,13 @@ public class InMemoryHBaseCluster implements HBaseCluster {
         } catch (Exception e) {
             throw new IOException("Error starting an in-memory HBase cluster", e);
         }
-        return utility.getConfiguration();
-    }
-
-
-    @Override
-    public void createTable(String tableName, Map<String, Integer> columnFamiliesAndVersions) throws IOException {
-        byte[][] families = new byte[columnFamiliesAndVersions.size()][];
-        int[] versions = new int[columnFamiliesAndVersions.size()];
-        int i = 0;
-        for (Map.Entry<String, Integer> e : columnFamiliesAndVersions.entrySet()) {
-            families[i] = Bytes.toBytes(e.getKey());
-            versions[i] = e.getValue();
-            i++;
-        }
-        utility.createTable(TableName.valueOf(tableName), families, versions);
+        connection = utility.getConnection();
+        return connection;
     }
 
     @Override
     public void end() throws Exception {
+        connection.close();
         utility.shutdownMiniCluster();
     }
 }

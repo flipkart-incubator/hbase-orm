@@ -7,7 +7,6 @@ public class ClassesWithInvalidHBTableAnnotation {
     @SuppressWarnings("unused")
     @HBTable(name = "blah", families = {@Family(name = "f", versions = 0)})
     public static class InvalidVersions implements HBRecord<String> {
-        @HBRowKey
         private String key = "key";
 
         @Override
@@ -26,7 +25,6 @@ public class ClassesWithInvalidHBTableAnnotation {
 
     @HBTable(name = "", families = {@Family(name = "f", versions = 5)})
     public static class EmptyTableName implements HBRecord<String> {
-        @HBRowKey
         private String key = "key";
 
         @Override
@@ -45,7 +43,6 @@ public class ClassesWithInvalidHBTableAnnotation {
 
     @HBTable(name = "blah", families = {@Family(name = "", versions = 3)})
     public static class EmptyColumnFamily implements HBRecord<String> {
-        @HBRowKey
         private String key = "key";
 
         @Override
@@ -64,7 +61,6 @@ public class ClassesWithInvalidHBTableAnnotation {
 
     @HBTable(name = "blah", families = {@Family(name = "f", versions = 2), @Family(name = "f", versions = 3)})
     public static class DuplicateColumnFamilies implements HBRecord<String> {
-        @HBRowKey
         private String key = "key";
 
         @Override
@@ -82,7 +78,6 @@ public class ClassesWithInvalidHBTableAnnotation {
     }
 
     public static class MissingHBTableAnnotation implements HBRecord<String> {
-        @HBRowKey
         private String key = "key";
 
         @Override

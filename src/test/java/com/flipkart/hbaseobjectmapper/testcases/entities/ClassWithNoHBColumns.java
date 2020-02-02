@@ -1,14 +1,10 @@
 package com.flipkart.hbaseobjectmapper.testcases.entities;
 
-import com.flipkart.hbaseobjectmapper.Family;
-import com.flipkart.hbaseobjectmapper.HBRecord;
-import com.flipkart.hbaseobjectmapper.HBRowKey;
-import com.flipkart.hbaseobjectmapper.HBTable;
+import com.flipkart.hbaseobjectmapper.*;
 
 @SuppressWarnings("unused")
 @HBTable(name = "blah", families = {@Family(name = "a")})
 public class ClassWithNoHBColumns implements HBRecord<String> {
-    @HBRowKey
     protected String key = "key";
 
     @Override

@@ -2,15 +2,15 @@ package com.flipkart.hbaseobjectmapper.testcases;
 
 import com.flipkart.hbaseobjectmapper.HBColumn;
 import com.flipkart.hbaseobjectmapper.HBColumnMultiVersion;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * This test case makes sure that annotations {@link HBColumn} and {@link HBColumnMultiVersion} are structurally same.
@@ -20,11 +20,12 @@ import static org.junit.Assert.assertEquals;
 public class TestHBColumnAnnotationsSymmetry {
     @Test
     public void testParameterSymmetry() throws NoSuchMethodException {
-        String message = String.format("Annotations %s and %s differ in their parameters", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName());
-        assertEquals(message, HBColumn.class.getDeclaredMethods().length, HBColumnMultiVersion.class.getDeclaredMethods().length);
+        String message = String.format("Annotations %s and %s differ in their methods", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName());
+        assertEquals(HBColumn.class.getDeclaredMethods().length, HBColumnMultiVersion.class.getDeclaredMethods().length, message);
         for (Method svMethod : HBColumn.class.getDeclaredMethods()) {
             Method mvMethod = HBColumnMultiVersion.class.getMethod(svMethod.getName());
-            assertEquals(message, svMethod.getReturnType(), mvMethod.getReturnType());
+            assertEquals(svMethod.getReturnType(), mvMethod.getReturnType(), String.format("%s (check return type of method %s)", message, svMethod.getName()));
+            assertArrayEquals(svMethod.getParameterTypes(), mvMethod.getParameterTypes(), String.format("%s (check parameter types of method %s)", message, svMethod.getName()));
         }
     }
 
@@ -39,6 +40,6 @@ public class TestHBColumnAnnotationsSymmetry {
         };
         Arrays.sort(svAnnotations, annotationComparator);
         Arrays.sort(mvAnnotations, annotationComparator);
-        assertArrayEquals(String.format("Annotations %s and %s differ in annotations on them", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()), svAnnotations, mvAnnotations);
+        assertArrayEquals(svAnnotations, mvAnnotations, String.format("Annotations %s and %s differ in annotations on them", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()));
     }
 }

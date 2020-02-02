@@ -9,17 +9,18 @@ import org.apache.hadoop.hbase.client.*;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
  * A <i>Data Access Object</i> (DAO) class that enables simple random access (read/write) of HBase rows.
  * <br><br>
- * <b>This class is thread-safe.</b> This is designed such that only one instance of each DAO class needs to be maintained for the entire lifecycle of your program.
+ * <b>This class is thread-safe.</b>
+ * <br><br>
+ * This class is designed such that only one instance of each DAO class needs to be maintained for the entire lifecycle of your program.
  *
- * @param <R> Data type of row key (must be '{@link Comparable} with itself' and must be {@link Serializable})
+ * @param <R> Data type of row key, which should be '{@link Comparable} with itself' and must be {@link Serializable} (e.g. {@link String}, {@link Integer}, {@link BigDecimal} etc. or your own POJO)
  * @param <T> Entity type that maps to an HBase row (this type must have implemented {@link HBRecord} interface)
  * @see <a href="https://en.wikipedia.org/wiki/Data_access_object">Data access object</a>
  */

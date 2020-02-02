@@ -1,8 +1,6 @@
 package com.flipkart.hbaseobjectmapper.testcases.entities;
 
-import com.flipkart.hbaseobjectmapper.Family;
-import com.flipkart.hbaseobjectmapper.HBColumn;
-import com.flipkart.hbaseobjectmapper.HBTable;
+import com.flipkart.hbaseobjectmapper.*;
 
 @SuppressWarnings("unused")
 @HBTable(name = "blah", families = {@Family(name = "f")})

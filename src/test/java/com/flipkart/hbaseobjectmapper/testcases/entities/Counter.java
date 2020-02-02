@@ -12,7 +12,6 @@ import java.util.TreeMap;
 @EqualsAndHashCode
 @HBTable(name = "counters", families = {@Family(name = "a", versions = 10)})
 public class Counter implements HBRecord<String> {
-    @HBRowKey
     private String key;
 
     @HBColumn(family = "a", column = "var")

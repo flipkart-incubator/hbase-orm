@@ -7,13 +7,13 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Triple;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.*;
 
 import static com.flipkart.hbaseobjectmapper.testcases.TestObjects.validObjects;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("unchecked")
 public class TestHBObjectMapper {
@@ -27,7 +27,6 @@ public class TestHBObjectMapper {
             triple(new ClassWithBadAnnotationStatic(), "Class with a static field mapped to HBase column", MappedColumnCantBeStaticException.class),
             triple(new ClassWithBadAnnotationTransient("James", "Gosling"), "Class with a transient field mapped to HBase column", MappedColumnCantBeTransientException.class),
             triple(new ClassWithNoHBColumns(), "Class with no fields mapped with HBColumn", MissingHBColumnFieldsException.class),
-            triple(new ClassWithNoHBRowKeys(), "Class with no fields mapped with HBRowKey", MissingHBRowKeyFieldsException.class),
             triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotMap(), "Class with an incompatible field (not Map) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
             triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.NotNavigableMap(), "Class with an incompatible field (not NavigableMap) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
             triple(new ClassesWithFieldIncompatibleWithHBColumnMultiVersion.EntryKeyNotLong(), "Class with an incompatible field (NavigableMap's entry key not Long) annotated with " + HBColumnMultiVersion.class.getName(), IncompatibleFieldForHBColumnMultiVersionAnnotationException.class),
@@ -74,7 +73,7 @@ public class TestHBObjectMapper {
             pFromResult = hbMapper.readValue(result, p.getClass());
         }
         end = System.currentTimeMillis();
-        assertEquals("Data mismatch after deserialization from Result", p, pFromResult);
+        assertEquals(p, pFromResult, "Data mismatch after deserialization from Result");
         System.out.printf("Time taken for Result -> POJO = %.2fms%n", timeTaken(start, end));
     }
 
@@ -92,7 +91,7 @@ public class TestHBObjectMapper {
             pFromResult = hbMapper.readValue(rowKey, result, p.getClass());
         }
         end = System.currentTimeMillis();
-        assertEquals("Data mismatch after deserialization from Result+Row", p, pFromResult);
+        assertEquals(p, pFromResult, "Data mismatch after deserialization from Result+Row");
         System.out.printf("Time taken for Rowkey+Result -> POJO = %.2fms%n", timeTaken(start, end));
     }
 
@@ -119,7 +118,7 @@ public class TestHBObjectMapper {
             pFromPut = hbMapper.readValue(put, p.getClass());
         }
         end = System.currentTimeMillis();
-        assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
+        assertEquals(p, pFromPut, "Data mismatch after deserialization from Put");
         System.out.printf("Time taken for Put -> POJO = %.2fms%n", timeTaken(start, end));
     }
 
@@ -133,13 +132,13 @@ public class TestHBObjectMapper {
             pFromPut = hbMapper.readValue(rowKey, put, p.getClass());
         }
         end = System.currentTimeMillis();
-        assertEquals("Data mismatch after deserialization from Put", p, pFromPut);
+        assertEquals(p, pFromPut, "Data mismatch after deserialization from Put");
         System.out.printf("Time taken for Rowkey+Put -> POJO = %.2fms%n%n", timeTaken(start, end));
     }
 
-    @Test(expected = RowKeyCouldNotBeParsedException.class)
+    @Test
     public void testInvalidRowKey() {
-        hbMapper.readValue(hbMapper.toIbw("invalid row key"), hbMapper.writeValueAsPut(validObjects.get(0)), Citizen.class);
+        assertThrows(RowKeyCouldNotBeParsedException.class, () -> hbMapper.readValue(hbMapper.toIbw("invalid row key"), hbMapper.writeValueAsPut(validObjects.get(0)), Citizen.class));
     }
 
     @Test
@@ -156,54 +155,54 @@ public class TestHBObjectMapper {
         for (Triple<HBRecord, String, Class<? extends IllegalArgumentException>> p : invalidRecordsAndErrorMessages) {
             HBRecord record = p.getFirst();
             Class recordClass = record.getClass();
-            assertFalse("Object mapper couldn't detect issue with invalid class " + recordClass.getName(), hbMapper.isValid(recordClass));
+            assertFalse(hbMapper.isValid(recordClass), "Object mapper couldn't detect issue with invalid class " + recordClass.getName());
             String errorMessage = p.getSecond() + " (" + recordClass.getName() + ") should have thrown an " + IllegalArgumentException.class.getName();
             String exMsgObjToResult = null, exMsgObjToPut = null, exMsgResultToObj = null, exMsgPutToObj = null;
             try {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
                 exMsgObjToResult = ex.getMessage();
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
                 exMsgObjToPut = ex.getMessage();
             }
             try {
                 hbMapper.readValue(someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
                 exMsgResultToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(someResult.getRow()), someResult, recordClass);
                 fail(errorMessage + " while converting Result to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
             }
             try {
                 hbMapper.readValue(somePut, recordClass);
                 fail(errorMessage + " while converting Put to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
                 exMsgPutToObj = ex.getMessage();
             }
             try {
                 hbMapper.readValue(new ImmutableBytesWritable(somePut.getRow()), somePut, recordClass);
                 fail(errorMessage + " while converting row key and Put combo to bean");
             } catch (IllegalArgumentException ex) {
-                assertEquals(ERROR_MESSAGE + recordClass.getSimpleName(), p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), ERROR_MESSAGE + recordClass.getSimpleName());
             }
-            assertEquals("Validation for 'conversion to Result' and 'conversion to Put' differ in code path", exMsgObjToResult, exMsgObjToPut);
-            assertEquals("Validation for 'conversion from Result' and 'conversion from Put' differ in code path", exMsgResultToObj, exMsgPutToObj);
-            assertEquals("Validation for 'conversion from bean' and 'conversion to bean' differ in code path", exMsgObjToResult, exMsgResultToObj);
+            assertEquals(exMsgObjToResult, exMsgObjToPut, "Validation for 'conversion to Result' and 'conversion to Put' differ in code path");
+            assertEquals(exMsgResultToObj, exMsgPutToObj, "Validation for 'conversion from Result' and 'conversion from Put' differ in code path");
+            assertEquals(exMsgObjToResult, exMsgResultToObj, "Validation for 'conversion from bean' and 'conversion to bean' differ in code path");
             System.out.printf("[edge case] %s threw below Exception, as expected:%n%s%n%n", p.getSecond(), exMsgObjToResult);
-            assertTrue("Same error message for different invalid inputs", exceptionMessages.add(exMsgObjToPut));
+            assertTrue(exceptionMessages.add(exMsgObjToPut), "Same error message for different invalid inputs");
         }
     }
 
@@ -216,13 +215,13 @@ public class TestHBObjectMapper {
                 hbMapper.writeValueAsResult(record);
                 fail(errorMessage + " while converting bean to Result\nFailing object = " + record);
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), "Mismatch in type of exception thrown");
             }
             try {
                 hbMapper.writeValueAsPut(record);
                 fail(errorMessage + " while converting bean to Put\nFailing object = " + record);
             } catch (IllegalArgumentException ex) {
-                assertEquals("Mismatch in type of exception thrown", p.getThird(), ex.getClass());
+                assertEquals(p.getThird(), ex.getClass(), "Mismatch in type of exception thrown");
             }
         }
     }
@@ -232,9 +231,9 @@ public class TestHBObjectMapper {
     public void testEmptyResults() {
         Result nullResult = null, blankResult = new Result(), emptyResult = Result.EMPTY_RESULT;
         Citizen nullCitizen = hbMapper.readValue(nullResult, Citizen.class);
-        assertNull("Null Result object should return null", nullCitizen);
+        assertNull(nullCitizen, "Null Result object should return null");
         Citizen emptyCitizen = hbMapper.readValue(blankResult, Citizen.class);
-        assertNull("Empty Result object should return null", emptyCitizen);
+        assertNull(emptyCitizen, "Empty Result object should return null");
         assertNull(hbMapper.readValue(emptyResult, Citizen.class));
     }
 
@@ -243,12 +242,11 @@ public class TestHBObjectMapper {
     public void testEmptyPuts() {
         Put nullPut = null;
         Citizen nullCitizen = hbMapper.readValue(nullPut, Citizen.class);
-        assertNull("Null Put object should return null", nullCitizen);
+        assertNull(nullCitizen, "Null Put object should return null");
     }
 
     @HBTable(name = "dummy1", families = {@Family(name = "a")})
     public static class DummyRowKeyClass implements HBRecord<String> {
-        @HBRowKey
         private String rowKey;
 
         @HBColumn(family = "a", column = "d")
@@ -275,7 +273,6 @@ public class TestHBObjectMapper {
 
     @HBTable(name = "dummy2", families = {@Family(name = "a")})
     public static class RowKeyComposeThrowsExceptionClass implements HBRecord<String> {
-        @HBRowKey
         private String rowKey;
 
         @HBColumn(family = "a", column = "d")
@@ -294,7 +291,7 @@ public class TestHBObjectMapper {
 
     @Test
     public void testGetRowKey() {
-        assertEquals("Row keys don't match", hbMapper.getRowKey(new DummyRowKeyClass("rowkey")), hbMapper.toIbw("rowkey"));
+        assertEquals(hbMapper.getRowKey(new DummyRowKeyClass("rowkey")), hbMapper.toIbw("rowkey"), "Row keys don't match");
         try {
             hbMapper.getRowKey(new DummyRowKeyClass(null));
             fail("null row key should've thrown a " + RowKeyCantBeEmptyException.class.getName());
@@ -333,8 +330,8 @@ public class TestHBObjectMapper {
             Result result = hbMapper.writeValueAsResult(new CrawlNoVersion("key").setF1(n));
             Crawl versioned = hbMapper.readValue(result, Crawl.class);
             NavigableMap<Long, Double> columnHistory = versioned.getF1();
-            assertEquals("Column history size mismatch", 1, columnHistory.size());
-            assertEquals(String.format("Inconsistency between %s and %s", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()), n, columnHistory.lastEntry().getValue());
+            assertEquals(1, columnHistory.size(), "Column history size mismatch");
+            assertEquals(n, columnHistory.lastEntry().getValue(), String.format("Inconsistency between %s and %s", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()));
             // Written as versioned, read as unversioned
             Crawl key = new Crawl("key").addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE);
             Crawl versionedCrawl = key.addF1(n);
@@ -342,7 +339,7 @@ public class TestHBObjectMapper {
             CrawlNoVersion unversionedCrawl = hbMapper.readValue(result1, CrawlNoVersion.class);
             Double f1 = unversionedCrawl.getF1();
             System.out.println(unversionedCrawl);
-            assertEquals(String.format("Inconsistency between %s and %s\nVersioned (persisted) object = %s\nUnversioned (retrieved) object = %s ", HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName(), versionedCrawl, unversionedCrawl), n, f1);
+            assertEquals(n, f1, String.format("Inconsistency between %s and %s\nVersioned (persisted) object = %s\nUnversioned (retrieved) object = %s ", HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName(), versionedCrawl, unversionedCrawl));
         }
     }
 }

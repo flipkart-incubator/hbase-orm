@@ -7,7 +7,6 @@ import java.util.Objects;
 @SuppressWarnings("unused")
 @HBTable(name = "employees", families = {@Family(name = "a")})
 public class Employee extends AbstractRecord implements HBRecord<Long> {
-    @HBRowKey
     private Long empid;
 
     @HBColumn(family = "a", column = "name")

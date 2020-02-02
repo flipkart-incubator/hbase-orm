@@ -8,7 +8,6 @@ import lombok.ToString;
 @HBTable(name = "employees_summary", families = {@Family(name = "a")})
 public class EmployeeSummary implements HBRecord<String> {
 
-    @HBRowKey
     private String key;
 
     @HBColumn(family = "a", column = "average_salary")

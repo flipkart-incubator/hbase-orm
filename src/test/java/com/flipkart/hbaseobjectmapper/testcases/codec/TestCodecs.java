@@ -1,10 +1,7 @@
 package com.flipkart.hbaseobjectmapper.testcases.codec;
 
-
 import com.flipkart.hbaseobjectmapper.*;
-import com.flipkart.hbaseobjectmapper.codec.BestSuitCodec;
-import com.flipkart.hbaseobjectmapper.codec.Codec;
-import com.flipkart.hbaseobjectmapper.codec.JavaObjectStreamCodec;
+import com.flipkart.hbaseobjectmapper.codec.*;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
 import com.flipkart.hbaseobjectmapper.exceptions.CodecException;
@@ -12,18 +9,14 @@ import com.flipkart.hbaseobjectmapper.exceptions.RowKeyCantBeComposedException;
 import com.flipkart.hbaseobjectmapper.testcases.TestObjects;
 import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
 import org.apache.hadoop.hbase.client.Put;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.NavigableMap;
+import java.lang.reflect.*;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("unchecked")
 public class TestCodecs {
@@ -48,7 +41,7 @@ public class TestCodecs {
                 final Map<String, String> rowKeyCodecFlags = toMap(objectClass.getAnnotation(HBTable.class).rowKeyCodecFlags());
                 byte[] bytes = codec.serialize(rowKey, rowKeyCodecFlags);
                 Serializable deserializedRowKey = codec.deserialize(bytes, rowKey.getClass(), rowKeyCodecFlags);
-                assertEquals(String.format("Row key got corrupted after serialization and deserialization, for this record:%n%s%n", record), rowKey, deserializedRowKey);
+                assertEquals(rowKey, deserializedRowKey, String.format("Row key got corrupted after serialization and deserialization, for this record:%n%s%n", record));
                 for (Object re : hbObjectMapper.getHBColumnFields(objectClass).entrySet()) {
                     Map.Entry<String, Field> e = (Map.Entry<String, Field>) re;
                     String fieldName = e.getKey();
@@ -95,7 +88,9 @@ public class TestCodecs {
     private void verifyFieldSerDe(Codec codec, String fieldFullName, Type type, Serializable fieldValue, Map<String, String> flags) throws SerializationException, DeserializationException {
         byte[] bytes = codec.serialize(fieldValue, flags);
         Serializable deserializedFieldValue = codec.deserialize(bytes, type, flags);
-        assertEquals(String.format("Field %s got corrupted after serialization and deserialization of it's value:%n%s%n", fieldFullName, fieldValue), fieldValue, deserializedFieldValue);
+        assertEquals(fieldValue, deserializedFieldValue,
+                String.format("Field %s got corrupted after serialization and deserialization of it's value:%n%s%n", fieldFullName, fieldValue)
+        );
     }
 
     @Test
@@ -124,7 +119,9 @@ public class TestCodecs {
         try {
             hbObjectMapper.writeValueAsPut(TestObjects.validObjects.get(0));
         } catch (CodecException e) {
-            assertEquals(String.format("Cause of %s should'be been %s", CodecException.class.getSimpleName(), SerializationException.class.getSimpleName()), SerializationException.class, e.getCause().getClass());
+            assertEquals(SerializationException.class, e.getCause().getClass(),
+                    String.format("Cause of %s should'be been %s", CodecException.class.getSimpleName(), SerializationException.class.getSimpleName())
+            );
         }
     }
 
@@ -142,7 +139,9 @@ public class TestCodecs {
             System.out.println(hbObjectMapper.readValue(put, Citizen.class));
             fail("Trying to serialize corrupt data should've thrown " + CodecException.class.getSimpleName());
         } catch (CodecException e) {
-            assertEquals(String.format("Cause of %s should'be been %s", CodecException.class.getSimpleName(), DeserializationException.class.getSimpleName()), DeserializationException.class, e.getCause().getClass());
+            assertEquals(DeserializationException.class, e.getCause().getClass(),
+                    String.format("Cause of %s should'be been %s", CodecException.class.getSimpleName(), DeserializationException.class.getSimpleName())
+            );
         }
     }
 }

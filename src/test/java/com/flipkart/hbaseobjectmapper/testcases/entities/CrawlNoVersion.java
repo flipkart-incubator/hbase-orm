@@ -6,7 +6,6 @@ import lombok.ToString;
 @HBTable(name = "crawls", families = {@Family(name = "a")})
 @ToString
 public class CrawlNoVersion implements HBRecord<String> {
-    @HBRowKey
     String key;
 
     @HBColumn(family = "a", column = "f1")
