@@ -412,7 +412,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
   <groupId>com.flipkart</groupId>
   <artifactId>hbase-object-mapper</artifactId>
-  <version>1.14</version>
+  <version>1.14.1</version>
 </dependency>
 ```
 
