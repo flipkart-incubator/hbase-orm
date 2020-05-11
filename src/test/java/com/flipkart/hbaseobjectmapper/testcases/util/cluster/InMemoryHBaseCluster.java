@@ -1,7 +1,6 @@
 package com.flipkart.hbaseobjectmapper.testcases.util.cluster;
 
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.client.Connection;
 
 import java.io.IOException;
@@ -44,6 +43,9 @@ public class InMemoryHBaseCluster implements HBaseCluster {
             throw new IOException("Error starting an in-memory HBase cluster", e);
         }
         connection = utility.getConnection();
+        if (connection == null) {
+            throw new IllegalStateException("Connection could not be established with in-memory HBase cluster");
+        }
         return connection;
     }
 

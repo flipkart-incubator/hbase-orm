@@ -37,8 +37,6 @@ import java.util.*;
  */
 public class HBObjectMapper {
 
-    private static final Codec DEFAULT_CODEC = new BestSuitCodec();
-
     private final Codec codec;
 
     /**
@@ -60,7 +58,7 @@ public class HBObjectMapper {
      * @see #HBObjectMapper(Codec)
      */
     public HBObjectMapper() {
-        this(DEFAULT_CODEC);
+        this(new BestSuitCodec());
     }
 
     /**
@@ -88,7 +86,10 @@ public class HBObjectMapper {
      *
      * @see #convertRecordToMap(HBRecord)
      */
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T convertMapToRecord(byte[] rowKeyBytes, NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map, Class<T> clazz) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T convertMapToRecord(
+            byte[] rowKeyBytes,
+            NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map,
+            Class<T> clazz) {
         Collection<Field> fields = getHBColumnFields0(clazz).values();
         WrappedHBTable<R, T> hbTable = new WrappedHBTable<>(clazz);
         R rowKey = bytesToRowKey(rowKeyBytes, hbTable.getCodecFlags(), clazz);
@@ -115,8 +116,8 @@ public class HBObjectMapper {
                 if (columnVersionsMap == null || columnVersionsMap.isEmpty()) {
                     continue;
                 }
-                Map.Entry<Long, byte[]> lastEntry = columnVersionsMap.lastEntry();
-                objectSetFieldValue(record, field, lastEntry.getValue(), hbColumn.codecFlags());
+                Map.Entry<Long, byte[]> firstEntry = columnVersionsMap.firstEntry();
+                objectSetFieldValue(record, field, firstEntry.getValue(), hbColumn.codecFlags());
             } else {
                 objectSetFieldValue(record, field, columnVersionsMap, hbColumn.codecFlags());
             }
@@ -253,7 +254,8 @@ public class HBObjectMapper {
      * @see #convertMapToRecord(byte[], NavigableMap, Class)
      */
     @SuppressWarnings("unchecked")
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> convertRecordToMap(HBRecord<R> record) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>>
+    NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> convertRecordToMap(HBRecord<R> record) {
         Class<T> clazz = (Class<T>) record.getClass();
         Collection<Field> fields = getHBColumnFields0(clazz).values();
         NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map = new TreeMap<>(Bytes.BYTES_COMPARATOR);
@@ -341,6 +343,10 @@ public class HBObjectMapper {
     @SuppressWarnings("unchecked")
     public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Put writeValueAsPut(HBRecord<R> record) {
         validateHBClass((Class<T>) record.getClass());
+        return writeValueAsPut0(record);
+    }
+
+    <R extends Serializable & Comparable<R>> Put writeValueAsPut0(HBRecord<R> record) {
         Put put = new Put(composeRowKey(record));
         for (Map.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : convertRecordToMap(record).entrySet()) {
             byte[] family = fe.getKey();
@@ -456,18 +462,13 @@ public class HBObjectMapper {
         return readValueFromResult(result, clazz);
     }
 
-    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValue(R rowKey, Result result, Class<T> clazz) {
-        if (rowKey == null)
-            return readValueFromResult(result, clazz);
-        else
-            return readValueFromRowAndResult(rowKeyToBytes(rowKey, WrappedHBTable.getCodecFlags(clazz)), result, clazz);
-    }
-
     private boolean isResultEmpty(Result result) {
-        return result == null || result.isEmpty() || result.getRow() == null || result.getRow().length == 0;
+        if (result == null || result.isEmpty()) return true;
+        byte[] rowBytes = result.getRow();
+        return rowBytes == null || rowBytes.length == 0;
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromResult(Result result, Class<T> clazz) {
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> T readValueFromResult(Result result, Class<T> clazz) {
         if (isResultEmpty(result)) return null;
         return convertMapToRecord(result.getRow(), result.getMap(), clazz);
     }

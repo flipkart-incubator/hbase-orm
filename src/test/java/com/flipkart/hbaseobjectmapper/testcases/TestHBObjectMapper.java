@@ -213,13 +213,13 @@ public class TestHBObjectMapper {
             String errorMessage = "An object with " + p.getSecond() + " should've thrown an " + p.getThird().getName();
             try {
                 hbMapper.writeValueAsResult(record);
-                fail(errorMessage + " while converting bean to Result\nFailing object = " + record);
+                fail(String.format("%s while converting bean to Result%nFailing object = %s", errorMessage, record));
             } catch (IllegalArgumentException ex) {
                 assertEquals(p.getThird(), ex.getClass(), "Mismatch in type of exception thrown");
             }
             try {
                 hbMapper.writeValueAsPut(record);
-                fail(errorMessage + " while converting bean to Put\nFailing object = " + record);
+                fail(String.format("%s while converting bean to Put%nFailing object = %s", errorMessage, record));
             } catch (IllegalArgumentException ex) {
                 assertEquals(p.getThird(), ex.getClass(), "Mismatch in type of exception thrown");
             }
@@ -324,22 +324,24 @@ public class TestHBObjectMapper {
 
     @Test
     public void testHBColumnMultiVersion() {
-        Double[] testNumbers = new Double[]{3.14159, 2.71828, 0.0};
-        for (Double n : testNumbers) {
+        Double[] numbers = new Double[]{0.0, 3.14159, 2.71828};
+        for (Double number : numbers) {
             // Written as unversioned, read as versioned
-            Result result = hbMapper.writeValueAsResult(new CrawlNoVersion("key").setF1(n));
+            Result result = hbMapper.writeValueAsResult(new CrawlNoVersion("key").setF1(number));
             Crawl versioned = hbMapper.readValue(result, Crawl.class);
             NavigableMap<Long, Double> columnHistory = versioned.getF1();
             assertEquals(1, columnHistory.size(), "Column history size mismatch");
-            assertEquals(n, columnHistory.lastEntry().getValue(), String.format("Inconsistency between %s and %s", HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()));
+            assertEquals(number, columnHistory.lastEntry().getValue(), String.format("Inconsistency between %s and %s",
+                    HBColumn.class.getSimpleName(), HBColumnMultiVersion.class.getSimpleName()));
             // Written as versioned, read as unversioned
-            Crawl key = new Crawl("key").addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE);
-            Crawl versionedCrawl = key.addF1(n);
-            Result result1 = hbMapper.writeValueAsResult(versionedCrawl);
-            CrawlNoVersion unversionedCrawl = hbMapper.readValue(result1, CrawlNoVersion.class);
-            Double f1 = unversionedCrawl.getF1();
-            System.out.println(unversionedCrawl);
-            assertEquals(n, f1, String.format("Inconsistency between %s and %s\nVersioned (persisted) object = %s\nUnversioned (retrieved) object = %s ", HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName(), versionedCrawl, unversionedCrawl));
+            Crawl crawl = new Crawl("key").addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE).addF1(Double.MAX_VALUE);
+            Crawl versionedCrawl = crawl.addF1(number);
+            Result crawlAsResult = hbMapper.writeValueAsResult(versionedCrawl);
+            CrawlNoVersion unversionedCrawl = hbMapper.readValue(crawlAsResult, CrawlNoVersion.class);
+            assertEquals(number, unversionedCrawl.getF1(), String.format("Inconsistency between %s and %s%n" +
+                            "Versioned (persisted) object = %s%nUnversioned (retrieved) object = %s",
+                    HBColumnMultiVersion.class.getSimpleName(), HBColumn.class.getSimpleName(),
+                    versionedCrawl, unversionedCrawl));
         }
     }
 }

@@ -13,10 +13,16 @@ class HBObjectMapperFactory {
     /**
      * Default instance of {@link HBObjectMapper}
      */
-    private static final HBObjectMapper hbObjectMapper = new HBObjectMapper();
+    private static HBObjectMapper hbObjectMapper;
+    private static final Object[] lock = new Object[0];
 
     static HBObjectMapper construct(Codec codec) {
-        return codec == null ? hbObjectMapper : new HBObjectMapper(codec);
+        if (hbObjectMapper == null) {
+            synchronized (lock) {
+                hbObjectMapper = codec == null ? new HBObjectMapper() : new HBObjectMapper(codec);
+            }
+        }
+        return hbObjectMapper;
     }
 }
 

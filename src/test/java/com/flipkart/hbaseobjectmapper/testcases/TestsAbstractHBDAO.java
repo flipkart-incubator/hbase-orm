@@ -47,7 +47,8 @@ public class TestsAbstractHBDAO {
             fail("The environmental variable " + InMemoryHBaseCluster.INMEMORY_CLUSTER_START_TIMEOUT + " is specified incorrectly (Must be numeric)");
         } catch (Exception e) {
             e.printStackTrace(System.err);
-            fail("Failed to connect to HBase. Aborted execution of DAO-related test cases. Reason:\n" + e.getMessage());
+            fail(String.format("Failed to connect to HBase. Aborted execution of DAO-related test cases." +
+                    "Reason:%n%s", e.getMessage()));
         }
     }
 
@@ -107,9 +108,9 @@ public class TestsAbstractHBDAO {
             final List<Citizen> records = TestObjects.validCitizenObjects;
             assertEquals("citizens", citizenDao.getTableName());
             final Set<String> columnFamiliesCitizen = citizenDao.getColumnFamiliesAndVersions().keySet(), columnFamiliesCitizenSummary = citizenSummaryDAO.getColumnFamiliesAndVersions().keySet();
-            assertEquals(s("main", "optional"), columnFamiliesCitizen, "Issue with column families of 'citizens' table\n" + columnFamiliesCitizen);
+            assertEquals(s("main", "optional"), columnFamiliesCitizen, "Issue with column families of 'citizens' table%n" + columnFamiliesCitizen);
             assertEquals("citizens_summary", citizenSummaryDAO.getTableName());
-            assertEquals(s("a"), columnFamiliesCitizenSummary, "Issue with column families of 'citizens_summary' table\n" + columnFamiliesCitizenSummary);
+            assertEquals(s("a"), columnFamiliesCitizenSummary, "Issue with column families of 'citizens_summary' table%n" + columnFamiliesCitizenSummary);
             String[] allRowKeys = new String[records.size()];
             Map<String, Map<String, Object>> expectedFieldValues = new HashMap<>();
             for (int i = 0; i < records.size(); i++) { // for each test object,
@@ -358,7 +359,7 @@ public class TestsAbstractHBDAO {
                     rowKeysList.add(key);
                 }
             }
-            String[] rowKeys = rowKeysList.toArray(new String[rowKeysList.size()]);
+            String[] rowKeys = rowKeysList.toArray(new String[0]);
 
             Set<Double> oldestValuesRangeScan = new HashSet<>(), oldestValuesBulkScan = new HashSet<>();
             for (int k = 1; k <= NUM_VERSIONS; k++) {

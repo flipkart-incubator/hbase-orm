@@ -139,7 +139,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public T get(R rowKey, int numVersionsToFetch) throws IOException {
         try (Table table = getHBaseTable()) {
             Result result = table.get(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
-            return hbObjectMapper.readValue(rowKey, result, hbRecordClass);
+            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
         }
     }
 
@@ -177,7 +177,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public T getOnGet(Get get) throws IOException {
         try (Table table = getHBaseTable()) {
             Result result = table.get(get);
-            return hbObjectMapper.readValue(result, hbRecordClass);
+            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
         }
     }
 
@@ -192,7 +192,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         try (Table table = getHBaseTable()) {
             Result[] results = table.get(gets);
             for (Result result : results) {
-                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+                records.add(hbObjectMapper.readValueFromResult(result, hbRecordClass));
             }
         }
         return records;
@@ -216,7 +216,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         try (Table table = getHBaseTable()) {
             Result[] results = table.get(gets);
             for (int i = 0; i < records.length; i++) {
-                records[i] = hbObjectMapper.readValue(rowKeys[i], results[i], hbRecordClass);
+                records[i] = hbObjectMapper.readValueFromResult(results[i], hbRecordClass);
             }
         }
         return records;
@@ -250,7 +250,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         try (Table table = getHBaseTable()) {
             Result[] results = table.get(gets);
             for (Result result : results) {
-                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+                records.add(hbObjectMapper.readValueFromResult(result, hbRecordClass));
             }
         }
         return records;
@@ -323,7 +323,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         try (Table table = getHBaseTable();
              ResultScanner scanner = table.getScanner(scan)) {
             for (Result result : scanner) {
-                records.add(hbObjectMapper.readValue(result, hbRecordClass));
+                records.add(hbObjectMapper.readValueFromResult(result, hbRecordClass));
             }
         }
         return records;
@@ -518,7 +518,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public T increment(Increment increment) throws IOException {
         try (Table table = getHBaseTable()) {
             Result result = table.increment(increment);
-            return hbObjectMapper.readValue(result, hbRecordClass);
+            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
         }
     }
 
@@ -569,7 +569,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         }
         try (Table table = getHBaseTable()) {
             Result result = table.append(append);
-            return hbObjectMapper.readValue(result, hbRecordClass);
+            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
         }
     }
 
@@ -599,7 +599,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public T append(Append append) throws IOException {
         try (Table table = getHBaseTable()) {
             Result result = table.append(append);
-            return hbObjectMapper.readValue(result, hbRecordClass);
+            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
         }
     }
 
@@ -623,7 +623,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public R persist(HBRecord<R> record) throws IOException {
-        Put put = hbObjectMapper.writeValueAsPut(record);
+        Put put = hbObjectMapper.writeValueAsPut0(record);
         try (Table table = getHBaseTable()) {
             table.put(put);
             return record.composeRowKey();
@@ -640,9 +640,9 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public List<R> persist(List<T> records) throws IOException {
         List<Put> puts = new ArrayList<>(records.size());
         List<R> rowKeys = new ArrayList<>(records.size());
-        for (HBRecord<R> object : records) {
-            puts.add(hbObjectMapper.writeValueAsPut(object));
-            rowKeys.add(object.composeRowKey());
+        for (HBRecord<R> record : records) {
+            puts.add(hbObjectMapper.writeValueAsPut0(record));
+            rowKeys.add(record.composeRowKey());
         }
         try (Table table = getHBaseTable()) {
             table.put(puts);

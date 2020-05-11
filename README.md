@@ -412,7 +412,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
   <groupId>com.flipkart</groupId>
   <artifactId>hbase-object-mapper</artifactId>
-  <version>1.14.1</version>
+  <version>1.15</version>
 </dependency>
 ```
 
@@ -423,7 +423,7 @@ See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](ht
 To build this project, follow below simple steps:
 
  1. Do a `git clone` of this repository
- 2. Checkout latest stable version `git checkout v1.14.1`
+ 2. Checkout latest stable version `git checkout v1.15`
  3. Execute `mvn clean install` from shell
 
 ### Please note:

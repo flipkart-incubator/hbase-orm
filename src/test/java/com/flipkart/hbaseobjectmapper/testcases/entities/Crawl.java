@@ -5,6 +5,7 @@ import lombok.ToString;
 
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 @HBTable(name = "crawls", families = {@Family(name = "a", versions = 10)})
 @ToString
@@ -34,6 +35,10 @@ public class Crawl implements HBRecord<String> {
     }
 
     public Crawl addF1(Double f1) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(10);
+        } catch (InterruptedException ignored) {
+        }
         this.f1.put(System.currentTimeMillis(), f1);
         return this;
     }

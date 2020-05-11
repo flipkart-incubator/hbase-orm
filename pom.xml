@@ -11,7 +11,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.14.1</version>
+    <version>1.15</version>
     <url>https://github.com/flipkart-incubator/hbase-orm</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-orm</url>
@@ -64,7 +64,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.10.3</version>
+            <version>2.9.10.4</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.10</version>
+            <version>1.18.12</version>
             <scope>test</scope>
         </dependency>
         <dependency>
