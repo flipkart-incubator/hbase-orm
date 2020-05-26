@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 @HBTable(name = "crawls", families = {@Family(name = "a", versions = 10)})
 @ToString
-public class Crawl implements HBRecord<String> {
+public class Crawl extends CrawlNoVersion {
     String key;
 
     @HBColumnMultiVersion(family = "a", column = "f1")
@@ -48,7 +48,7 @@ public class Crawl implements HBRecord<String> {
         return this;
     }
 
-    public NavigableMap<Long, Double> getF1() {
+    public NavigableMap<Long, Double> getF1Versioned() {
         return f1;
     }
 }

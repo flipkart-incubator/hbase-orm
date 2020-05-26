@@ -2,15 +2,14 @@
 
 [![Build Status](https://api.travis-ci.org/flipkart-incubator/hbase-orm.svg?branch=master&status=passed)](https://travis-ci.org/github/flipkart-incubator/hbase-orm)
 [![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=master)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=master)
-[![Maven Central](https://img.shields.io/badge/sonatype-1.15-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.15/)
+[![Maven Central](https://img.shields.io/badge/sonatype-1.16-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.15/)
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
 
 ## Introduction
-An ultra-light-weight HBase ORM library that enables:
+HBase ORM is a light-weight, thread-safe and performant library that enables:
 
 1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability
 2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs
-
 
 ## Usage
 Let's say you've an HBase table `citizens` with row-key format of `country_code#UID`. Now, let's say this table is created with three column families `main`, `optional` and `tracked`, which may have columns (qualifiers) `uid`, `name`, `salary` etc.
@@ -115,6 +114,7 @@ See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/t
 
 ### Serialization / Deserialization mechanism
 
+* Serialization and deserialization are handled through 'codecs'.
 * The default codec (called [BestSuitCodec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/BestSuitCodec.java)) included in this library has the following behavior:
   * uses HBase's native methods to serialize objects of data types `Boolean`, `Short`, `Integer`, `Long`, `Float`, `Double`, `String` and `BigDecimal` (see: [Bytes](https://hbase.apache.org/2.0/devapidocs/org/apache/hadoop/hbase/util/Bytes.html))
   * uses [Jackson's JSON serializer](https://en.wikipedia.org/wiki/Jackson_(API)) for all other data types
@@ -122,7 +122,7 @@ See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/t
 * To customize serialization/deserialization behavior, you may define your own codec (by implementing the [Codec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/Codec.java) interface) or you may extend the default codec.
 * The optional parameter `codecFlags` (supported by both `@HBColumn` and `@HBColumnMultiVersion` annotations) can be used to pass custom flags to the underlying codec. (e.g. You may want your codec to serialize field `Integer id` in `Citizen` class differently from field `Integer id` in `Employee` class)
 * The default codec class `BestSuitCodec` takes a flag `BestSuitCodec.SERIALIZE_AS_STRING`, whose value is "serializeAsString" (as in the above `Citizen` class example). When this flag is set to `true` on a field, the default codec serializes that field (even numerical fields) as strings.
-  * Your custom codec may take other such flags to customize serialization/deserialization behavior at a **class field level**.
+  * Your custom codec may take other such flags as inputs to customize serialization/deserialization behavior at a **class field level**.
 
 ## Using this library for database access (DAO)
 This library provides an abstract class to define your own [data access object](https://en.wikipedia.org/wiki/Data_access_object). For example, you can create one for `Citizen` class in the above example as follows:
@@ -132,7 +132,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import java.io.IOException;
 
 public class CitizenDAO extends AbstractHBDAO<String, Citizen> {
-// in above, String is the row type of Citizen
+// in above, String is the 'row type' of Citizen
 
   public CitizenDAO(Connection connection) throws IOException {
     super(connection); // if you need to customize your codec, you may use super(connection, codec)
@@ -235,10 +235,10 @@ Read data from HBase using HBase's native `Get`:
 
 ```java
 Get get1 = citizenDao.getGet("IND#2"); // returns object of HBase's Get corresponding to row key "IND#2", to enable advanced read patterns
-counterDAO.getOnGets(get1); 
+Counter counter1 = counterDAO.getOnGet(get1);
 
 Get get2 = citizenDao.getGet("IND#2").setTimeRange(1, 5).setMaxVersions(2); // Advanced HBase row fetch
-counterDAO.getOnGets(get2);
+Counter counter2 = counterDAO.getOnGet(get2);
 ```
 
 Manipulate and persist an object back to HBase:
@@ -307,7 +307,7 @@ Once instantiated, you may do the following DDL operations:
 hbAdmin.createTable(Citizen.class); 
 // Above statement creates table with name and column families specification as per the @HBTable annotation on the Citizen class
 
-hbAdmin.tableExists(Citizen.class); // returns true
+hbAdmin.tableExists(Citizen.class); // returns true/false
 
 hbAdmin.disableTable(Citizen.class);
 
@@ -315,7 +315,7 @@ hbAdmin.deleteTable(Citizen.class);
 
 ```
 
-Note that **all** of the above are very heavy and time-consuming operations.
+Note that DDL operations on HBase are typically heavy and time-consuming.
 
 ## Using this library in MapReduce jobs
 
@@ -325,6 +325,7 @@ If your MapReduce job is reading from an HBase table, in your `map()` method, HB
 ```java
 T readValue(ImmutableBytesWritable rowKey, Result result, Class<T> clazz)
 ```
+where `T` is your bean-like class that extends this library's `HBRecord` interface (e.g. `Citizen` class above).
 
 For example:
 
@@ -336,11 +337,13 @@ Citizen e = hbObjectMapper.readValue(key, value, Citizen.class);
 If your MapReduce job is writing to an HBase table, in your `reduce()` method, object of your bean-like class can be converted to HBase's `Put` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
-ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+ImmutableBytesWritable getRowKey(T record)
 ```
 ```java
-Put writeValueAsPut(HBRecord<R> obj)
+Put writeValueAsPut(T record)
 ```
+where `T` is your bean-like class that extends this library's `HBRecord` interface (e.g. `Citizen` class above).
+
 For example, below code in Reducer writes your object as one HBase row with appropriate column families and columns:
 
 ```java
@@ -353,11 +356,13 @@ If your MapReduce job is reading from an HBase table, you would want to unit-tes
 Object of your bean-like class can be converted to HBase's `Result` (for row contents) and `ImmutableBytesWritable` (for row key) using below methods:
 
 ```java
-ImmutableBytesWritable getRowKey(HBRecord<R> obj)
+ImmutableBytesWritable getRowKey(T record)
 ```
 ```java
-Result writeValueAsResult(HBRecord<R> obj)
+Result writeValueAsResult(T record)
 ```
+where `T` is your bean-like class that extends this library's `HBRecord` interface (e.g. `Citizen` class above).
+
 Below is an example of unit-test of a Mapper using [MRUnit](https://attic.apache.org/projects/mrunit.html):
 
 ```java
@@ -382,6 +387,8 @@ HBase's `Put` object can be converted to your object of you bean-like class usin
 ```java
 T readValue(ImmutableBytesWritable rowKey, Put put, Class<T> clazz)
 ```
+where `T` is your bean-like class that extends this library's `HBRecord` interface (e.g. `Citizen` class above).
+
 
 Below is an example of unit-test of a Reducer using [MRUnit](https://attic.apache.org/projects/mrunit.html):
 
@@ -398,11 +405,11 @@ CitizenSummary citizenSummary = hbObjectMapper.readValue(
 ```
 
 ## Advantages
- * Your application code will be clean and minimal.
+ * Your application code will be **clean** and **minimal**.
  * Your code need not worry about HBase methods or serialization/deserialization at all, thereby helping you maintain clear [separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns).
- * Classes are **thread-safe**. You just have to instantiate your DAO classes once at the start of your application and use them anywhere!
- * Light weight: This library depends on just HBase Client and few other small libraries. It has very low overhead and hence is very fast.
- * Customizability/Extensibility: Want to use HBase native methods directly in some cases? No problem. Want to customize ser/deser in general or for a given class field? No problem. This library is high flexible.
+ * Classes are **thread-safe**. You just have to instantiate your DAO classes once at the start of your application and use them anywhere throughout the life-cycle of your application!
+ * **Light weight**: This library depends on just [hbase-client](https://mvnrepository.com/artifact/org.apache.hbase/hbase-client) and few other small libraries. It has very low overhead and hence is very fast.
+ * Customizability/Extensibility: Want to use HBase's native methods directly in some cases? You can do that. Want to customize serializatoin/deserialization for a given type or for a specific given class field? You can do that too. This library is highly flexible.
 
 ## Limitations
 Being an *object mapper*, this library works for pre-defined columns only. For example, this library doesn't provide ways to fetch:
@@ -417,7 +424,7 @@ Add below entry within the `dependencies` section of your `pom.xml`:
 <dependency>
   <groupId>com.flipkart</groupId>
   <artifactId>hbase-object-mapper</artifactId>
-  <version>1.15</version>
+  <version>1.16</version>
 </dependency>
 ```
 
@@ -428,7 +435,7 @@ See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](ht
 To build this project, follow below simple steps:
 
  1. Do a `git clone` of this repository
- 2. Checkout latest stable version `git checkout v1.15`
+ 2. Checkout latest stable version `git checkout v1.16`
  3. Execute `mvn clean install` from shell
 
 ### Please note:

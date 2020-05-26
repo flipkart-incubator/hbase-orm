@@ -255,7 +255,7 @@ public class HBObjectMapper {
      */
     @SuppressWarnings("unchecked")
     private <R extends Serializable & Comparable<R>, T extends HBRecord<R>>
-    NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> convertRecordToMap(HBRecord<R> record) {
+    NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> convertRecordToMap(T record) {
         Class<T> clazz = (Class<T>) record.getClass();
         Collection<Field> fields = getHBColumnFields0(clazz).values();
         NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> map = new TreeMap<>(Bytes.BYTES_COMPARATOR);
@@ -295,7 +295,7 @@ public class HBObjectMapper {
         return map;
     }
 
-    private <R extends Serializable & Comparable<R>> byte[] getFieldValueAsBytes(HBRecord<R> record, Field field, Map<String, String> codecFlags) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> byte[] getFieldValueAsBytes(T record, Field field, Map<String, String> codecFlags) {
         Serializable fieldValue;
         try {
             field.setAccessible(true);
@@ -306,7 +306,7 @@ public class HBObjectMapper {
         return valueToByteArray(fieldValue, codecFlags);
     }
 
-    private <R extends Serializable & Comparable<R>> NavigableMap<Long, byte[]> getFieldValuesAsNavigableMapOfBytes(HBRecord<R> record, Field field, Map<String, String> codecFlags) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> NavigableMap<Long, byte[]> getFieldValuesAsNavigableMapOfBytes(T record, Field field, Map<String, String> codecFlags) {
         try {
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
@@ -341,12 +341,12 @@ public class HBObjectMapper {
      * @return HBase's {@link Put} object
      */
     @SuppressWarnings("unchecked")
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Put writeValueAsPut(HBRecord<R> record) {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Put writeValueAsPut(T record) {
         validateHBClass((Class<T>) record.getClass());
         return writeValueAsPut0(record);
     }
 
-    <R extends Serializable & Comparable<R>> Put writeValueAsPut0(HBRecord<R> record) {
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Put writeValueAsPut0(T record) {
         Put put = new Put(composeRowKey(record));
         for (Map.Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> fe : convertRecordToMap(record).entrySet()) {
             byte[] family = fe.getKey();
@@ -368,11 +368,12 @@ public class HBObjectMapper {
      *
      * @param records List of objects of your bean-like class (of type that extends {@link HBRecord})
      * @param <R>     Data type of row key
+     * @param <T>     Entity type
      * @return List of HBase's {@link Put} objects
      */
-    public <R extends Serializable & Comparable<R>> List<Put> writeValueAsPut(List<HBRecord<R>> records) {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> List<Put> writeValueAsPut(List<T> records) {
         List<Put> puts = new ArrayList<>(records.size());
-        for (HBRecord<R> record : records) {
+        for (T record : records) {
             Put put = writeValueAsPut(record);
             puts.add(put);
         }
@@ -389,7 +390,7 @@ public class HBObjectMapper {
      * @return HBase's {@link Result} object
      */
     @SuppressWarnings("unchecked")
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Result writeValueAsResult(HBRecord<R> record) {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Result writeValueAsResult(T record) {
         validateHBClass((Class<T>) record.getClass());
         byte[] row = composeRowKey(record);
         List<Cell> cellList = new ArrayList<>();
@@ -416,11 +417,12 @@ public class HBObjectMapper {
      *
      * @param records List of objects of your bean-like class (of type that extends {@link HBRecord})
      * @param <R>     Data type of row key
+     * @param <T>     Entity type
      * @return List of HBase's {@link Result} objects
      */
-    public <R extends Serializable & Comparable<R>> List<Result> writeValueAsResult(List<HBRecord<R>> records) {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> List<Result> writeValueAsResult(List<T> records) {
         List<Result> results = new ArrayList<>(records.size());
-        for (HBRecord<R> record : records) {
+        for (T record : records) {
             Result result = writeValueAsResult(record);
             results.add(result);
         }
@@ -620,7 +622,7 @@ public class HBObjectMapper {
      * @see #toIbw(Serializable)
      */
     @SuppressWarnings("unchecked")
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> ImmutableBytesWritable getRowKey(HBRecord<R> record) {
+    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> ImmutableBytesWritable getRowKey(T record) {
         if (record == null) {
             throw new NullPointerException("Cannot compose row key for null objects");
         }
@@ -628,7 +630,7 @@ public class HBObjectMapper {
         return new ImmutableBytesWritable(composeRowKey(record));
     }
 
-    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> byte[] composeRowKey(HBRecord<R> record) {
+    private <R extends Serializable & Comparable<R>, T extends HBRecord<R>> byte[] composeRowKey(T record) {
         R rowKey;
         try {
             rowKey = record.composeRowKey();

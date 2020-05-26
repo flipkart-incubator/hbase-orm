@@ -190,6 +190,11 @@ public class TestsAbstractHBDAO {
                 assertEquals(citizenDao.get("IND#102"), citizen2, "Get by iterable didn't match get by individual record");
             }
 
+            // Check exists:
+            assertTrue(citizenDao.exists("IND#101"), "Row key exists, but couldn't be detected");
+            assertFalse(citizenDao.exists("IND#100"), "Row key doesn't exist");
+            assertArrayEquals(new boolean[]{false, true, true, false, false}, citizenDao.exists(a("IND#100", "IND#101", "IND#102", "IND#121", "IND#141")));
+
             // Range Get vs Bulk Get (Single-version)
             for (String f : citizenDao.getFields()) {
                 Map<String, Object> fieldValuesBulkGetFull = citizenDao.fetchFieldValues(allRowKeys, f),
@@ -332,7 +337,7 @@ public class TestsAbstractHBDAO {
             }
             crawlNoVersionDAO.persist(objs);
             Crawl crawl = crawlDAO.get("key", NUM_VERSIONS);
-            assertEquals(1.0, crawl.getF1().values().iterator().next(), 1e-9, "Issue with version history implementation when written as unversioned and read as versioned");
+            assertEquals(1.0, crawl.getF1Versioned().values().iterator().next(), 1e-9, "Issue with version history implementation when written as unversioned and read as versioned");
             crawlDAO.delete("key");
             Crawl versioned = crawlDAO.get("key");
             assertNull(versioned, "Deleted row (with key " + versioned + ") still exists when accessed as versioned DAO");
@@ -349,7 +354,7 @@ public class TestsAbstractHBDAO {
             crawlDAO.persist(crawl2);
             CrawlNoVersion crawlNoVersion = crawlNoVersionDAO.get("key2");
             assertEquals(crawlNoVersion.getF1(), testNumbers[testNumbers.length - 1], "Entry with the highest version (i.e. timestamp) isn't the one that was returned by DAO get");
-            assertArrayEquals(testNumbersOfRange, crawlDAO.get("key2", NUM_VERSIONS).getF1().values().toArray(), "Issue with version history implementation when written as versioned and read as unversioned");
+            assertArrayEquals(testNumbersOfRange, crawlDAO.get("key2", NUM_VERSIONS).getF1Versioned().values().toArray(), "Issue with version history implementation when written as versioned and read as unversioned");
 
             List<String> rowKeysList = new ArrayList<>();
             for (int v = 0; v <= 9; v++) {

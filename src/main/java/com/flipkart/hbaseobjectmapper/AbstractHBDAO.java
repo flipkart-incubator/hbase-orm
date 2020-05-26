@@ -170,7 +170,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     /**
      * Fetch an HBase row for a given {@link Get} object
      *
-     * @param get HBase's Get object, typically formed using the {@link #getGet(Serializable) getGet} method
+     * @param get HBase's Get object, typically formed using the {@link #getGet(Serializable) getGet(R)} method
      * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
      * @throws IOException When HBase call fails
      */
@@ -507,7 +507,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Performs HBase {@link Table#increment} on the given {@link Increment} object <br>
      * <br>
      * <b>Note</b>: <ul>
-     * <li>You may construct {@link Increment} object using the {@link #getIncrement(Serializable) getIncrement} method</li>
+     * <li>You may construct {@link Increment} object using the {@link #getIncrement(Serializable) getIncrement(R)} method</li>
      * <li>Unlike the {@link #increment(Serializable, String, long)} methods, this method skips some validations (hence, be cautious)</li>
      * </ul>
      *
@@ -533,7 +533,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return <b>Partial object</b> containing (only) value of field that was appended
      * @throws IOException When HBase call fails
      * @see Table#append(Append)
-     * @see #append(Serializable, Map)
+     * @see #append(Serializable, Map) append(R, Map)
      */
     public T append(R rowKey, String fieldName, Object valueToAppend) throws IOException {
         Map<String, Object> one = new HashMap<>(1);
@@ -551,10 +551,10 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return <b>Partial object</b> containing (only) values of fields that were appended
      * @throws IOException When HBase call fails
      * @see Table#append(Append)
-     * @see #append(Serializable, String, Object)
+     * @see #append(Serializable, String, Object) append(R, String, Object)
      */
     public T append(R rowKey, Map<String, Object> valuesToAppend) throws IOException {
-        Append append = new Append(toBytes(rowKey));
+        Append append = getAppend(rowKey);
         for (Map.Entry<String, Object> e : valuesToAppend.entrySet()) {
             String fieldName = e.getKey();
             Field field = getField(fieldName);
@@ -567,10 +567,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
                     hbObjectMapper.valueToByteArray((Serializable) value, hbColumn.codecFlags())
             );
         }
-        try (Table table = getHBaseTable()) {
-            Result result = table.append(append);
-            return hbObjectMapper.readValueFromResult(result, hbRecordClass);
-        }
+        return append(append);
     }
 
 
@@ -588,8 +585,8 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * Performs HBase's {@link Table#append} on the given {@link Append} object <br>
      * <br>
      * <b>Note</b>: <ul>
-     * <li>You may construct {@link Append} object using the {@link #getAppend(Serializable) getAppend} method</li>
-     * <li>Unlike the {@link #append(Serializable, String, Object)} and related methods, this method skips some validations. So, use this only if you need access to HBase's native methods.</li>
+     * <li>You may construct {@link Append} object using the {@link #getAppend(Serializable) getAppend(R)} method</li>
+     * <li>Unlike the {@link #append(Serializable, String, Object) append(R, String, Object)} and related methods, this method skips some validations. So, use this only if you need access to HBase's native methods.</li>
      * </ul>
      *
      * @param append HBase's {@link Append} object
@@ -622,7 +619,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @return Row key of the persisted object, represented as a {@link String}
      * @throws IOException When HBase call fails
      */
-    public R persist(HBRecord<R> record) throws IOException {
+    public R persist(T record) throws IOException {
         Put put = hbObjectMapper.writeValueAsPut0(record);
         try (Table table = getHBaseTable()) {
             table.put(put);
@@ -640,7 +637,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     public List<R> persist(List<T> records) throws IOException {
         List<Put> puts = new ArrayList<>(records.size());
         List<R> rowKeys = new ArrayList<>(records.size());
-        for (HBRecord<R> record : records) {
+        for (T record : records) {
             puts.add(hbObjectMapper.writeValueAsPut0(record));
             rowKeys.add(record.composeRowKey());
         }
@@ -670,7 +667,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @param record Object to delete
      * @throws IOException When HBase call fails
      */
-    public void delete(HBRecord<R> record) throws IOException {
+    public void delete(T record) throws IOException {
         this.delete(record.composeRowKey());
     }
 
@@ -698,7 +695,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public void delete(List<T> records) throws IOException {
         List<Delete> deletes = new ArrayList<>(records.size());
-        for (HBRecord<R> record : records) {
+        for (T record : records) {
             deletes.add(new Delete(toBytes(record.composeRowKey())));
         }
         try (Table table = getHBaseTable()) {
@@ -851,7 +848,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
     }
 
     /**
-     * Fetch column values for a given array of row keys (bulk variant of method {@link #fetchFieldValue(Serializable, String)})
+     * Fetch column values for a given array of row keys (bulk variant of method {@link #fetchFieldValue(Serializable, String) fetchFieldValue(R, String)})
      *
      * @param rowKeys   Array of row keys to fetch
      * @param fieldName Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
@@ -882,7 +879,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
             get.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
             gets.add(get);
         }
-        Map<R, NavigableMap<Long, Object>> map = new HashMap<>(rowKeys.length, 1.0f);
+        Map<R, NavigableMap<Long, Object>> map = new LinkedHashMap<>(rowKeys.length, 1.0f);
         try (Table table = getHBaseTable()) {
             Result[] results = table.get(gets);
             for (Result result : results) {
@@ -900,5 +897,39 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public byte[] toBytes(R rowKey) {
         return hbObjectMapper.rowKeyToBytes(rowKey, hbTable.getCodecFlags());
+    }
+
+    /**
+     * Check whether a row exists or not
+     *
+     * @param rowKey Row key
+     * @return <code>true</code> if row with given row key exists
+     * @throws IOException When HBase call fails
+     */
+    public boolean exists(R rowKey) throws IOException {
+        try (Table table = getHBaseTable()) {
+            return table.exists(new Get(
+                    toBytes(rowKey)
+            ));
+        }
+    }
+
+    /**
+     * Check whether specified rows exist or not
+     *
+     * @param rowKeys Row keys
+     * @return Array with <code>true</code>/<code>false</code> values corresponding to whether row with given row keys exist
+     * @throws IOException When HBase call fails
+     */
+    public boolean[] exists(R[] rowKeys) throws IOException {
+        List<Get> gets = new ArrayList<>(rowKeys.length);
+        for (R rowKey : rowKeys) {
+            gets.add(new Get(
+                    toBytes(rowKey)
+            ));
+        }
+        try (Table table = getHBaseTable()) {
+            return table.exists(gets);
+        }
     }
 }
