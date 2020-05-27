@@ -2,7 +2,7 @@
 
 [![Build Status](https://api.travis-ci.org/flipkart-incubator/hbase-orm.svg?branch=master&status=passed)](https://travis-ci.org/github/flipkart-incubator/hbase-orm)
 [![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=master)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=master)
-[![Maven Central](https://img.shields.io/badge/sonatype-1.16-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.15/)
+[![Maven Central](https://img.shields.io/badge/sonatype-1.16-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.16/)
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
 
 ## Introduction
