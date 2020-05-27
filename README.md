@@ -1,6 +1,7 @@
 # HBase ORM
 
 [![Build Status](https://api.travis-ci.org/flipkart-incubator/hbase-orm.svg?branch=master&status=passed)](https://travis-ci.org/github/flipkart-incubator/hbase-orm)
+[![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/flipkart-incubator/hbase-orm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/flipkart-incubator/hbase-orm/context:java)
 [![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=master)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=master)
 [![Maven Central](https://img.shields.io/badge/sonatype-1.16-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.16/)
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
@@ -409,7 +410,7 @@ CitizenSummary citizenSummary = hbObjectMapper.readValue(
  * Your code need not worry about HBase methods or serialization/deserialization at all, thereby helping you maintain clear [separation of concerns](https://en.wikipedia.org/wiki/Separation_of_concerns).
  * Classes are **thread-safe**. You just have to instantiate your DAO classes once at the start of your application and use them anywhere throughout the life-cycle of your application!
  * **Light weight**: This library depends on just [hbase-client](https://mvnrepository.com/artifact/org.apache.hbase/hbase-client) and few other small libraries. It has very low overhead and hence is very fast.
- * Customizability/Extensibility: Want to use HBase's native methods directly in some cases? You can do that. Want to customize serializatoin/deserialization for a given type or for a specific given class field? You can do that too. This library is highly flexible.
+ * Customizability/Extensibility: Want to use HBase's native methods directly in some cases? You can do that. Want to customize serialization/deserialization for a given type or for a specific given class field? You can do that too. This library is very flexible.
 
 ## Limitations
 Being an *object mapper*, this library works for pre-defined columns only. For example, this library doesn't provide ways to fetch:
