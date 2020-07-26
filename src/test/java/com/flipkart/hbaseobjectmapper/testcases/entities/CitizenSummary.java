@@ -5,7 +5,7 @@ import com.flipkart.hbaseobjectmapper.*;
 import lombok.ToString;
 
 @ToString
-@HBTable(name = "citizens_summary", families = {@Family(name = "a")})
+@HBTable(namespace = "govt", name = "citizens_summary", families = {@Family(name = "a")})
 public class CitizenSummary implements HBRecord<String> {
 
     private String key;

@@ -1,14 +1,13 @@
 package com.flipkart.hbaseobjectmapper;
 
-
-import com.flipkart.hbaseobjectmapper.exceptions.*;
+import com.flipkart.hbaseobjectmapper.exceptions.BothHBColumnAnnotationsPresentException;
+import com.flipkart.hbaseobjectmapper.exceptions.DuplicateCodecFlagForColumnException;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
-
 
 /**
  * A wrapper class for {@link HBColumn} and {@link HBColumnMultiVersion} annotations (for internal use only)
@@ -21,10 +20,6 @@ class WrappedHBColumn {
     private final Field field;
 
     WrappedHBColumn(Field field) {
-        this(field, false);
-    }
-
-    WrappedHBColumn(Field field, boolean throwExceptionIfNonHBColumn) {
         this.field = field;
         HBColumn hbColumn = field.getAnnotation(HBColumn.class);
         HBColumnMultiVersion hbColumnMultiVersion = field.getAnnotation(HBColumnMultiVersion.class);
@@ -46,9 +41,6 @@ class WrappedHBColumn {
             annotationClass = HBColumnMultiVersion.class;
             codecFlags = toMap(hbColumnMultiVersion.codecFlags());
         } else {
-            if (throwExceptionIfNonHBColumn) {
-                throw new FieldNotMappedToHBaseColumnException(field.getDeclaringClass(), field.getName());
-            }
             family = null;
             column = null;
             singleVersioned = false;

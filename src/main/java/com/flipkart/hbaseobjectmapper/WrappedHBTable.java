@@ -30,7 +30,11 @@ class WrappedHBTable<R extends Serializable & Comparable<R>, T extends HBRecord<
         if (hbTable.name().isEmpty()) {
             throw new ImproperHBTableAnnotationExceptions.EmptyTableNameOnHBTableAnnotationException(String.format("Annotation %s on class %s has empty name", HBTable.class.getName(), clazz.getName()));
         }
-        tableName = TableName.valueOf(hbTable.name().getBytes());
+        if (hbTable.name().contains(":")) {
+            tableName = TableName.valueOf(hbTable.name());
+        } else {
+            tableName = TableName.valueOf(hbTable.namespace(), hbTable.name());
+        }
         codecFlags = toMap(hbTable.rowKeyCodecFlags());
         families = new HashMap<>(hbTable.families().length, 1.0f);
         for (Family family : hbTable.families()) {
@@ -76,7 +80,7 @@ class WrappedHBTable<R extends Serializable & Comparable<R>, T extends HBRecord<
 
     @Override
     public String toString() {
-        return tableName.getNameAsString();
+        return tableName.getNameWithNamespaceInclAsString();
     }
 
     static <R extends Serializable & Comparable<R>, T extends HBRecord<R>> Map<String, String> getCodecFlags(Class<T> clazz) {

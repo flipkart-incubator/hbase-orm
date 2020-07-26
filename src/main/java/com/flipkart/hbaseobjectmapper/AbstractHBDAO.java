@@ -114,7 +114,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
     protected AbstractHBDAO(Connection connection) {
-        this(connection, (Codec) null);
+        this(connection, HBObjectMapperFactory.construct());
     }
 
     /**
@@ -125,7 +125,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IllegalStateException Annotation(s) on base entity may be incorrect
      */
     protected AbstractHBDAO(Configuration configuration) throws IOException {
-        this(configuration, (Codec) null);
+        this(configuration, HBObjectMapperFactory.construct());
     }
 
     /**
@@ -281,11 +281,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      * @throws IOException When HBase call fails
      */
     public List<T> get(R startRowKey, R endRowKey, int numVersionsToFetch) throws IOException {
-        Scan scan = new Scan()
-                .withStartRow(toBytes(startRowKey))
-                .withStopRow(toBytes(endRowKey))
-                .readVersions(numVersionsToFetch);
-        return get(scan);
+        return get(startRowKey, true, endRowKey, false, numVersionsToFetch);
     }
 
     /**
@@ -457,7 +453,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         if (!Long.class.equals(field.getType())) {
             throw new IllegalArgumentException(String.format("Invalid attempt to increment a non-Long field (%s.%s)", hbRecordClass.getName(), fieldName));
         }
-        return new WrappedHBColumn(field, true);
+        return new WrappedHBColumn(field);
     }
 
     /**
@@ -558,11 +554,11 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         for (Map.Entry<String, Object> e : valuesToAppend.entrySet()) {
             String fieldName = e.getKey();
             Field field = getField(fieldName);
-            WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
             Object value = e.getValue();
             if (!field.getType().isAssignableFrom(value.getClass())) {
                 throw new IllegalArgumentException(String.format("An attempt was made to append a value of type '%s' to field '%s', which is of type '%s' (incompatible)", value.getClass(), fieldName, field.getType()));
             }
+            WrappedHBColumn hbColumn = new WrappedHBColumn(field);
             append.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes(),
                     hbObjectMapper.valueToByteArray((Serializable) value, hbColumn.codecFlags())
             );
@@ -753,7 +749,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
         if (result.isEmpty()) {
             return;
         }
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         List<Cell> cells = result.getColumnCells(hbColumn.familyBytes(), hbColumn.columnBytes());
         for (Cell cell : cells) {
             Type fieldType = hbObjectMapper.getFieldType(field, hbColumn.isMultiVersioned());
@@ -833,7 +829,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public NavigableMap<R, NavigableMap<Long, Object>> fetchFieldValues(R startRowKey, R endRowKey, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         Scan scan = new Scan().withStartRow(toBytes(startRowKey)).withStopRow(toBytes(endRowKey));
         scan.addColumn(hbColumn.familyBytes(), hbColumn.columnBytes());
         scan.readVersions(numVersionsToFetch);
@@ -871,7 +867,7 @@ public abstract class AbstractHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public Map<R, NavigableMap<Long, Object>> fetchFieldValues(R[] rowKeys, String fieldName, int numVersionsToFetch) throws IOException {
         Field field = getField(fieldName);
-        WrappedHBColumn hbColumn = new WrappedHBColumn(field, true);
+        WrappedHBColumn hbColumn = new WrappedHBColumn(field);
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {
             Get get = new Get(toBytes(rowKey));

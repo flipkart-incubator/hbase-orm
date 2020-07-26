@@ -11,7 +11,10 @@ import java.util.*;
 @SuppressWarnings("unused")
 @ToString
 @EqualsAndHashCode
-@HBTable(name = "citizens", families = {@Family(name = "main"), @Family(name = "optional", versions = 10)})
+@HBTable(namespace = "govt", name = "citizens", families = {
+        @Family(name = "main"),
+        @Family(name = "optional", versions = 10)
+})
 public class Citizen implements HBRecord<String> {
     private static final String ROWKEY_DELIMITER = "#";
     private String countryCode;

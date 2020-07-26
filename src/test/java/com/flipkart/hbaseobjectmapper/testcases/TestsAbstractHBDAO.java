@@ -43,6 +43,8 @@ public class TestsAbstractHBDAO {
             }
             connection = hBaseCluster.start();
             hbAdmin = new HBAdmin(connection);
+            hbAdmin.createNamespace("govt");
+            hbAdmin.createNamespace("corp");
         } catch (NumberFormatException e) {
             fail("The environmental variable " + InMemoryHBaseCluster.INMEMORY_CLUSTER_START_TIMEOUT + " is specified incorrectly (Must be numeric)");
         } catch (Exception e) {
@@ -189,6 +191,15 @@ public class TestsAbstractHBDAO {
                 assertEquals(citizenDao.get("IND#101"), citizen1, "Get by iterable didn't match get by individual record");
                 assertEquals(citizenDao.get("IND#102"), citizen2, "Get by iterable didn't match get by individual record");
             }
+
+            assertTrue(Iterables.elementsEqual(
+                    citizenDao.records("IND#102", "IND#104"),
+                    citizenDao.records("IND#102", true, "IND#104", false, 1, 10)
+            ), "Mismatch in result between records() method with and without default options");
+            assertTrue(Iterables.elementsEqual(
+                    citizenDao.records("IND#102", "IND#104"),
+                    citizenDao.get("IND#102", "IND#104")
+            ), "Mismatch in result between records() and get() methods");
 
             // Check exists:
             assertTrue(citizenDao.exists("IND#101"), "Row key exists, but couldn't be detected");

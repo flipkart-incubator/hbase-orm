@@ -3,14 +3,16 @@
 [![Build Status](https://api.travis-ci.org/flipkart-incubator/hbase-orm.svg?branch=master&status=passed)](https://travis-ci.org/github/flipkart-incubator/hbase-orm)
 [![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/flipkart-incubator/hbase-orm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/flipkart-incubator/hbase-orm/context:java)
 [![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=master)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=master)
-[![Maven Central](https://img.shields.io/badge/sonatype-1.16-orange.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.16/)
+[![Maven Central](https://img.shields.io/badge/sonatype-1.18-blue.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.18/)
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
 
 ## Introduction
 HBase ORM is a light-weight, thread-safe and performant library that enables:
 
-1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability
-2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs
+1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability.
+2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs.
+
+This can also be used as an ORM for Bigtable. Scroll down till the relevant section to know how.
 
 ## Usage
 Let's say you've an HBase table `citizens` with row-key format of `country_code#UID`. Now, let's say this table is created with three column families `main`, `optional` and `tracked`, which may have columns (qualifiers) `uid`, `name`, `salary` etc.
@@ -18,7 +20,7 @@ Let's say you've an HBase table `citizens` with row-key format of `country_code#
 This library enables to you represent your HBase table as a *bean-like class*, as below:
 
 ```java
-@HBTable(name = "citizens",
+@HBTable(namepsace = "govt", name = "citizens",
   families = {
     @Family(name = "main"),
     @Family(name = "optional", versions = 3),
@@ -37,8 +39,11 @@ public class Citizen implements HBRecord<String> {
   @HBColumn(family = "optional", column = "age")
   private Short age;
 
-  @HBColumn(family = "optional", column = "salary")
-  private Integer sal;
+  @HBColumn(family = "optional", column = "income")
+  private Integer annualIncome;
+
+  @HBColumn(family = "optional", column = "registration_date")
+  private LocalDateTime registrationDate;
 
   @HBColumn(family = "optional", column = "counter")
   private Long counter;
@@ -74,10 +79,10 @@ public class Citizen implements HBRecord<String> {
 ```
 That is,
 
-* The above class `Citizen` represents the HBase table `citizens`, using the `@HBTable` annotation.
+* The above class `Citizen` represents the HBase table `citizens` in namespace `govt`, using the `@HBTable` annotation.
 * Logics for conversion of HBase row key to member variables of `Citizen` objects and vice-versa are implemented using `parseRowKey` and `composeRowKey` methods respectively.
 * The data type representing row key is the type parameter to `HBRecord` generic interface (in above case, `String`).
-  * Note that `String` is both `Comparable` and `Serializable`.
+  * Note that `String` is both '`Comparable` with itself' and `Serializable`.
 * Names of columns and their column families are specified using `@HBColumn` or `@HBColumnMultiVersion` annotations.
 * The class may contain fields of simple data types (e.g. `String`, `Integer`), generic data types (e.g. `Map`, `List`), custom class (e.g. `Dependents`) or even generics of custom class (e.g. `List<Dependent>`) 
 * The `@HBColumnMultiVersion` annotation allows you to map multiple versions of column in a `NavigableMap<Long, ?>`. In above example, field `phoneNumber` is mapped to column `phone_number` within the column family `tracked` (which is configured for multiple versions)
@@ -85,7 +90,6 @@ That is,
 Alternatively, you can model your class as below:
 
 ```java
-...
 class CitizenKey implements Serializable, Comparable<CitizenKey> {
     String countryCode;
     Integer uid;
@@ -148,7 +152,11 @@ Once defined, you can instantiate your *data access object* as below:
 ```java
 CitizenDAO citizenDao = new CitizenDAO(connection);
 ```
-You can access, manipulate and persist records of `citizens` table as shown in below examples:
+**Side note**: As you'd know, HBase's `Connection` creation is a heavy-weight operation
+(Details: [Connection](https://hbase.apache.org/2.0/apidocs/org/apache/hadoop/hbase/client/Connection.html)).
+So, it is recommended that you create `Connection` instance once and use it for the entire life cycle of your program across all the DAO classes that you create (such as above).
+
+Now, you can access, manipulate and persist records of `citizens` table as shown in below examples:
 
 Create new record:
 
@@ -290,7 +298,7 @@ citizenDao.getHBaseTable() // returns HTable instance (in case you want to direc
 
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/TestsAbstractHBDAO.java) for more detailed examples)
 
-**Please note:** Since we're dealing with HBase (and not an OLTP data store), fitting a classical (Hibernate-like) ORM paradigm may not make sense. So this library doesn't intend to evolve as a full-fledged ORM. However, if that's your intent, I suggest you use [Apache Phoenix](https://phoenix.apache.org/).
+**Please note:** Since we're dealing with HBase (and not a classical RDBMS), fitting a Hibernate-like ORM may not make sense. So, this library does **not** intend to evolve as a full-fledged ORM. However, if that's your intent, I suggest you use [Apache Phoenix](https://phoenix.apache.org/).
 
 
 ## Using this library for DDL operations
@@ -418,30 +426,32 @@ Being an *object mapper*, this library works for pre-defined columns only. For e
   * columns matching a pattern or a regular expression
   * unmapped columns of a column family
 
-## Maven
-Add below entry within the `dependencies` section of your `pom.xml`:
+## Adding to your build
+If you are using Maven, add below entry within the `dependencies` section of your `pom.xml`:
 
 ```xml
 <dependency>
   <groupId>com.flipkart</groupId>
   <artifactId>hbase-object-mapper</artifactId>
-  <version>1.16</version>
+  <version>1.18</version>
 </dependency>
 ```
 
-See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](https://search.maven.org/search?q=g:com.flipkart%20AND%20a:hbase-object-mapper&core=gav) or
-[com.flipkart:hbase-object-mapper on **MVN Repository**](https://mvnrepository.com/artifact/com.flipkart/hbase-object-mapper).
+See artifact details: [com.flipkart:hbase-object-mapper on **Maven Central**](https://search.maven.org/search?q=g:com.flipkart%20AND%20a:hbase-object-mapper&core=gav).
+
+If you're using Gradle or Ivy or SBT, see how to include this library in your build:
+[com.flipkart:hbase-object-mapper:1.18](https://mvnrepository.com/artifact/com.flipkart/hbase-object-mapper/1.18).
 
 ## How to build?
 To build this project, follow below simple steps:
 
  1. Do a `git clone` of this repository
- 2. Checkout latest stable version `git checkout v1.16`
+ 2. Checkout latest stable version `git checkout v1.18`
  3. Execute `mvn clean install` from shell
 
 ### Please note:
 
- * Currently, projects that use this library are running on [Hortonworks Data Platform v3.1](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/index.html) (corresponds to Hadoop 3.1 and HBase 2.0). However, if you are using a different version of Hadoop/HBase, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
+ * Currently, systems that use this library are running on Hadoop 3.1 and HBase 2.0. However, if you are using a different version of Hadoop/HBase, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
  * Test cases are **very comprehensive**. So, `mvn` build times can sometimes be longer, depending on your machine configuration.
  * By default, test cases spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). 
     * If test cases are failing with time out errors, you may increase the timeout by setting environment variable `INMEMORY_CLUSTER_START_TIMEOUT` (seconds). For example, on Linux you may run the command `export INMEMORY_CLUSTER_START_TIMEOUT=8` on terminal, before running the aforementioned `mvn` command.
@@ -456,6 +466,22 @@ The change log can be found in the [releases](//github.com/flipkart-incubator/hb
 ## Feature requests and bug reporting
 
 If you intend to request a feature or report a bug, you may use [Github Issues for hbase-orm](//github.com/flipkart-incubator/hbase-orm/issues).
+
+## Bigtable ORM
+Google's [Cloud Bigtable](https://cloud.google.com/bigtable) provides first-class support for [accessing Bigtable using HBase client](https://cloud.google.com/bigtable/docs/reference/libraries#client-libraries-usage-hbase-java).
+
+This library can be used as a **Bigtable ORM**, 3 simple steps:
+1. Add following to your dependencies:
+    * [bigtable-hbase-2.x](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x) or [bigtable-hbase-2.x-shaded](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x-shaded)
+    * This library
+2. Instantiate `Connection` class as below:
+    ```java
+    import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+    // some code
+    Connection connection = BigtableConfiguration.connect(projectId, instanceId);
+    // some code
+    ``` 
+3. Use the `Connection` instance as mentioned earlier
 
 ## License
 

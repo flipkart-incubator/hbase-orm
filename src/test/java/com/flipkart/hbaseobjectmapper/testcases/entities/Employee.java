@@ -1,12 +1,17 @@
 package com.flipkart.hbaseobjectmapper.testcases.entities;
 
 import com.flipkart.hbaseobjectmapper.*;
+import lombok.*;
 
-import java.util.Objects;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @SuppressWarnings("unused")
-@HBTable(name = "employees", families = {@Family(name = "a")})
-public class Employee extends AbstractRecord implements HBRecord<Long> {
+@HBTable(name = "corp:employees", families = {@Family(name = "a")})
+@NoArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = false)
+public class Employee extends AbstractRecord {
     private Long empid;
 
     @HBColumn(family = "a", column = "name")
@@ -33,35 +38,11 @@ public class Employee extends AbstractRecord implements HBRecord<Long> {
         return reporteeCount;
     }
 
-    public Employee() {
-
-    }
-
     public Employee(Long empid, String empName, Short reporteeCount, Long createdAt) {
         this.empid = empid;
         this.empName = empName;
         this.reporteeCount = reporteeCount;
-        this.createdAt = createdAt;
+        this.createdAt = LocalDateTime.ofEpochSecond(createdAt, 0, ZoneOffset.UTC);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Employee other = (Employee) o;
-        return Objects.equals(empid, other.empid) &&
-                Objects.equals(empName, other.empName) &&
-                Objects.equals(reporteeCount, other.reporteeCount) &&
-                Objects.equals(createdAt, other.createdAt);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(empid, empName, reporteeCount, createdAt);
-    }
-
-    @Override
-    public String toString() {
-        return String.format("Employee{empid=%d, empName='%s', reporteeCount=%s, createdAt=%d}", empid, empName, reporteeCount, createdAt);
-    }
 }

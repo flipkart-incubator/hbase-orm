@@ -39,8 +39,8 @@ public class TestObjects {
     );
 
     public static final List<HBRecord> validStudentObjects = asList(
-            new Student(1, "Ishan"),
-            new Student(2, "Akshit")
+            new Student(1, "S1", (short) 44, 3, 21L, 34.0f, 1.2, BigDecimal.valueOf(3.2), true),
+            new Student(2, "S2", (short) -1, -3, -21L, -34.0f, 1.2e232, BigDecimal.valueOf(-3.2), false)
     );
 
     private static List<HBRecord> asList(HBRecord... hbRecords) {

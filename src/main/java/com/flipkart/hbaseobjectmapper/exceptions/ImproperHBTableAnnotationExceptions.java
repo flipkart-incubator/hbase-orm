@@ -2,6 +2,10 @@ package com.flipkart.hbaseobjectmapper.exceptions;
 
 public class ImproperHBTableAnnotationExceptions {
 
+    private ImproperHBTableAnnotationExceptions() {
+        throw new UnsupportedOperationException("This is a wrapper class for exceptions; not to be instantiated");
+    }
+
     public static class MissingHBTableAnnotationException extends IllegalArgumentException {
         public MissingHBTableAnnotationException(String message) {
             super(message);

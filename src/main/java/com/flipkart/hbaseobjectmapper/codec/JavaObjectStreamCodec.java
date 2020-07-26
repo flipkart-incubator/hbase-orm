@@ -8,7 +8,9 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Just a reference implementation, kept here for testing purposes. In real world, you should <b>never</b> use this codec. Either use the (default) {@link BestSuitCodec} or write your own.
+ * Just a reference implementation, kept here for testing purposes.
+ * In real world, you should <b>never</b> use this codec.
+ * Either use the default codec ({@link BestSuitCodec}) or extend the default codec or write your own.
  */
 public class JavaObjectStreamCodec implements Codec {
     /*

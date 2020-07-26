@@ -18,19 +18,25 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 public @interface HBTable {
     /**
-     * Name of the HBase table
+     * Namespace of the HBase table
+     *
+     * @return Name of the HBase table
+     */
+    String namespace() default "default";
+
+    /**
+     * Name/Qualifier of the HBase table
      *
      * @return Name of the HBase table
      */
     String name();
-
 
     /**
      * Column families and their specs
      *
      * @return Column families and their specs
      */
-    Family[] families() default {};
+    Family[] families();
 
     /**
      * <b>[optional]</b> flags to be passed to codec's {@link Codec#serialize(Serializable, Map) serialize} and {@link Codec#deserialize(byte[], Type, Map) deserialize} methods

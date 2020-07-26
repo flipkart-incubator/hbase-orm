@@ -2,27 +2,38 @@ package com.flipkart.hbaseobjectmapper;
 
 import com.flipkart.hbaseobjectmapper.codec.Codec;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Maintains one instance of {@link HBObjectMapper} class. For internal use only.
  */
 class HBObjectMapperFactory {
-    private HBObjectMapperFactory() {
-        throw new UnsupportedOperationException();
-    }
-
     /**
      * Default instance of {@link HBObjectMapper}
      */
-    private static HBObjectMapper hbObjectMapper;
-    private static final Object[] lock = new Object[0];
+    private static HBObjectMapper defaultHBObjectMapper;
 
-    static HBObjectMapper construct(Codec codec) {
-        if (hbObjectMapper == null) {
-            synchronized (lock) {
-                hbObjectMapper = codec == null ? new HBObjectMapper() : new HBObjectMapper(codec);
-            }
+    private static final Map<Class<? extends Codec>, HBObjectMapper> customHBObjectMappers = new HashMap<>();
+
+    protected HBObjectMapperFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    static synchronized HBObjectMapper construct() {
+        if (defaultHBObjectMapper == null) {
+            defaultHBObjectMapper = new HBObjectMapper();
         }
-        return hbObjectMapper;
+        return defaultHBObjectMapper;
+    }
+
+    static synchronized HBObjectMapper construct(Codec codec) {
+        HBObjectMapper customHBObjectMapper = customHBObjectMappers.get(codec.getClass());
+        if (customHBObjectMapper == null) {
+            customHBObjectMapper = new HBObjectMapper(codec);
+            customHBObjectMappers.put(codec.getClass(), customHBObjectMapper);
+        }
+        return customHBObjectMapper;
     }
 }
 

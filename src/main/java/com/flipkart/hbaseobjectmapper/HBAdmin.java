@@ -1,5 +1,6 @@
 package com.flipkart.hbaseobjectmapper;
 
+import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -21,6 +22,13 @@ public class HBAdmin {
      */
     public HBAdmin(Connection connection) {
         this.connection = connection;
+    }
+
+    public void createNamespace(String namespace) throws IOException {
+        try (Admin admin = connection.getAdmin()) {
+            admin.createNamespace(
+                    NamespaceDescriptor.create(namespace).build());
+        }
     }
 
     /**

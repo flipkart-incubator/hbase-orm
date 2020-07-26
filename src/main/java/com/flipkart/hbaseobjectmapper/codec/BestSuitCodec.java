@@ -1,6 +1,8 @@
 package com.flipkart.hbaseobjectmapper.codec;
 
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.flipkart.hbaseobjectmapper.Flag;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.DeserializationException;
 import com.flipkart.hbaseobjectmapper.codec.exceptions.SerializationException;
@@ -52,6 +54,8 @@ public class BestSuitCodec implements Codec {
     private static ObjectMapper getObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new Jdk8Module());
         return objectMapper;
     }
 
@@ -154,8 +158,7 @@ public class BestSuitCodec implements Codec {
         try {
             javaType = objectMapper.constructType(type);
             return objectMapper.readValue(bytes, javaType);
-        } catch (
-                Exception e) {
+        } catch (Exception e) {
             throw new DeserializationException(String.format("Could not deserialize JSON into an object of type %s using Jackson%n(Jackson resolved type = %s)", type, javaType), e);
         }
     }

@@ -33,7 +33,7 @@ public class TestCodecs {
 
     @SuppressWarnings("unchecked")
     public void testWithCodec(Codec codec) {
-        HBObjectMapper hbObjectMapper = new HBObjectMapper(codec);
+        HBObjectMapper hbObjectMapper = HBObjectMapperFactoryTC.construct(codec);
         try {
             for (HBRecord record : TestObjects.validObjects) {
                 Class<? extends HBRecord> objectClass = record.getClass();

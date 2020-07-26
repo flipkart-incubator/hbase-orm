@@ -1,11 +1,12 @@
 package com.flipkart.hbaseobjectmapper.testcases.entities;
 
-import com.flipkart.hbaseobjectmapper.HBColumn;
-import com.flipkart.hbaseobjectmapper.MappedSuperClass;
+import com.flipkart.hbaseobjectmapper.*;
+
+import java.time.LocalDateTime;
 
 @MappedSuperClass
-public class AbstractRecord {
+public abstract class AbstractRecord implements HBRecord<Long> {
 
     @HBColumn(family = "a", column = "created_at")
-    protected Long createdAt;
+    protected LocalDateTime createdAt;
 }
