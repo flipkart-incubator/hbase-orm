@@ -122,7 +122,7 @@ See source files [Citizen.java](./src/test/java/com/flipkart/hbaseobjectmapper/t
 * Serialization and deserialization are handled through 'codecs'.
 * The default codec (called [BestSuitCodec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/BestSuitCodec.java)) included in this library has the following behavior:
   * uses HBase's native methods to serialize objects of data types `Boolean`, `Short`, `Integer`, `Long`, `Float`, `Double`, `String` and `BigDecimal` (see: [Bytes](https://hbase.apache.org/2.0/devapidocs/org/apache/hadoop/hbase/util/Bytes.html))
-  * uses [Jackson's JSON serializer](https://en.wikipedia.org/wiki/Jackson_(API)) for all other data types
+  * uses [Jackson's JSON serializer](https://github.com/FasterXML/jackson) for all other data types
   * serializes `null` as `null`
 * To customize serialization/deserialization behavior, you may define your own codec (by implementing the [Codec](./src/main/java/com/flipkart/hbaseobjectmapper/codec/Codec.java) interface) or you may extend the default codec.
 * The optional parameter `codecFlags` (supported by both `@HBColumn` and `@HBColumnMultiVersion` annotations) can be used to pass custom flags to the underlying codec. (e.g. You may want your codec to serialize field `Integer id` in `Citizen` class differently from field `Integer id` in `Employee` class)
@@ -451,7 +451,7 @@ To build this project, follow below simple steps:
 
 ### Please note:
 
- * Currently, systems that use this library are running on Hadoop 3.1 and HBase 2.0. However, if you are using a different version of Hadoop/HBase, you may change the versions in [pom.xml](./pom.xml) to desired ones and build the project.
+ * Currently, systems that use this library are running on HBase 2.0. However, if you are using a different version, just change the version in [pom.xml](./pom.xml) to the desired one and build the project.
  * Test cases are **very comprehensive**. So, `mvn` build times can sometimes be longer, depending on your machine configuration.
  * By default, test cases spin an [in-memory HBase test cluster](https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/HBaseTestingUtility.java) to run data access related test cases (near-realworld scenario). 
     * If test cases are failing with time out errors, you may increase the timeout by setting environment variable `INMEMORY_CLUSTER_START_TIMEOUT` (seconds). For example, on Linux you may run the command `export INMEMORY_CLUSTER_START_TIMEOUT=8` on terminal, before running the aforementioned `mvn` command.
@@ -470,7 +470,7 @@ If you intend to request a feature or report a bug, you may use [Github Issues f
 ## Bigtable ORM
 Google's [Cloud Bigtable](https://cloud.google.com/bigtable) provides first-class support for [accessing Bigtable using HBase client](https://cloud.google.com/bigtable/docs/reference/libraries#client-libraries-usage-hbase-java).
 
-This library can be used as a **Bigtable ORM**, 3 simple steps:
+This library can be used as a **Bigtable ORM** in 3 simple steps:
 1. Add following to your dependencies:
     * [bigtable-hbase-2.x](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x) or [bigtable-hbase-2.x-shaded](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x-shaded)
     * This library
