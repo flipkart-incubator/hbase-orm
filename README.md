@@ -192,22 +192,32 @@ List<Citizen> lpe2 = citizenDao.get("IND#1", true, "IND#9", true, 5, 10000);
 Iterate over *large number of records* by range of row keys:
 
 ```java
-try (Records<Citizen> citizens = citizenDao.records("IND#000000001", true, "IND#100000000", true, 1, 10000)) {
-// using try-with-resources above to close the resources after iteration
+// Read records from 'IND#000000001' (inclusive) to 'IND#100000000' (exclusive):
+try (Records<Citizen> citizens = citizenDao.records("IND#000000001", "IND#100000000")) {
+  for (Citizen citizen : citizens) {
+    // your code
+  }
+}
+
+// Read records from 'IND#000000001' (inclusive) to 'IND#100000000' (inclusive) with 
+// 5 versions, caching set to 1,000 rows:
+try (Records<Citizen> citizens = citizenDao.records("IND#000000001", true, "IND#100000000", true, 5, 1000)) {
   for (Citizen citizen : citizens) {
     // your code
   }
 }
 ```
-**Note:** All the `.records(...)` methods efficiently use iterators internally and do not load records upfront into memory. Hence, it's safe to fetch millions of records using them.
+**Note:** All the `.records(...)` methods efficiently use iterators internally and do not load records upfront into memory. Hence, it is safe to fetch millions of records using them.
 
 Fetch records by row key prefix:
 
 ```java
-// For small number of records:
 List<Citizen> lpe3 = citizenDao.getByPrefix(citizenDao.toBytes("IND#"));
+```
 
-// For large number of records:
+Iterate over *large number of records* by row key prefix:
+
+```java
 try (Records<Citizen> citizens = citizenDao.recordsByPrefix(citizenDao.toBytes("IND#"))) {
   for (Citizen citizen : citizens) {
     // do something
@@ -243,7 +253,8 @@ NavigableMap<String, NavigableMap<Long, Object>> phoneNumberHistory
 Read data from HBase using HBase's native `Get`:
 
 ```java
-Get get1 = citizenDao.getGet("IND#2"); // returns object of HBase's Get corresponding to row key "IND#2", to enable advanced read patterns
+Get get1 = citizenDao.getGet("IND#2");
+// above returns object of HBase's Get corresponding to row key "IND#2", to enable advanced read patterns
 Counter counter1 = counterDAO.getOnGet(get1);
 
 Get get2 = citizenDao.getGet("IND#2").setTimeRange(1, 5).setMaxVersions(2); // Advanced HBase row fetch
@@ -263,13 +274,13 @@ citizenDao.persist(pe);
 Delete records in various ways:
 
 ```java
-// Delete a row by it's object reference:
+// Delete a row by its object reference:
 citizenDao.delete(pe);
 
 // Delete multiple rows by list of object references:
 citizenDao.delete(Arrays.asList(pe1, pe2)); 
 
-// Delete a row by it's row key:
+// Delete a row by its row key:
 citizenDao.delete("IND#2"); 
 
  // Delete a bunch of rows by their row keys:
@@ -293,7 +304,8 @@ citizenDao.append("IND#2", "name", " Kalam");
 Other operations:
 
 ```java
-citizenDao.getHBaseTable() // returns HTable instance (in case you want to directly play around) 
+Table citizenTable = citizenDao.getHBaseTable()
+// in case you want to directly class HBase's native methods
 ```
 
 (see [TestsAbstractHBDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/TestsAbstractHBDAO.java) for more detailed examples)
@@ -314,7 +326,8 @@ Once instantiated, you may do the following DDL operations:
 
 ```java
 hbAdmin.createTable(Citizen.class); 
-// Above statement creates table with name and column families specification as per the @HBTable annotation on the Citizen class
+// Above statement creates table with name and column families specification as per
+// the @HBTable annotation on the Citizen class
 
 hbAdmin.tableExists(Citizen.class); // returns true/false
 
@@ -326,8 +339,21 @@ hbAdmin.deleteTable(Citizen.class);
 
 Note that DDL operations on HBase are typically heavy and time-consuming.
 
+## Using this library to handle HBase data types
+The `HBObjectMapper` class in this library provides the useful methods such as below:
+
+```java
+Result writeValueAsResult(T record)
+```
+```java
+T readValue(Result result, Class<T> clazz)
+```
+where `T` is your bean-like class that extends this library's `HBRecord` interface (e.g. `Citizen` class above).
+
+Using these, you can convert your object to HBase's `Result` and vice versa.
+
 ## Using this library in MapReduce jobs
-Read [article](./wiki/Using-this-library-in-MapReduce-jobs).
+Read [article](//github.com/flipkart-incubator/hbase-orm/wiki/Using-this-library-in-MapReduce-jobs).
 
 ## Advantages
  * Your application code will be **clean** and **minimal**.
@@ -337,7 +363,7 @@ Read [article](./wiki/Using-this-library-in-MapReduce-jobs).
  * Customizability/Extensibility: Want to use HBase's native methods directly in some cases? You can do that. Want to customize serialization/deserialization for a given type or for a specific given class field? You can do that too. This library is very flexible.
 
 ## Limitations
-Being an *object mapper*, this library works for pre-defined columns only. For example, this library doesn't provide ways to fetch:
+Being an *object mapper*, this library works for predefined columns only. For example, this library doesn't provide ways to fetch:
 
   * columns matching a pattern or a regular expression
   * unmapped columns of a column family
@@ -403,4 +429,4 @@ This library can be used as a **Bigtable ORM** in 3 simple steps:
 
 Copyright 2020 Flipkart Internet Pvt Ltd.
 
-Licensed under the [Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or it's source code except in compliance with the License.
+Licensed under the [Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or its source code except in compliance with the License.
