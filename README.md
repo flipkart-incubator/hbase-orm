@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
 
 ## Introduction
-HBase ORM is a light-weight, thread-safe and performant library that enables:
+HBase ORM is a light-weight, production-grade, thread-safe and performant library that enables:
 
 1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability.
 2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs.
@@ -134,6 +134,7 @@ This library provides an abstract class to define your own [data access object](
 
 ```java
 import org.apache.hadoop.hbase.client.Connection;
+import com.flipkart.hbaseobjectmapper.AbstractHBDAO;
 import java.io.IOException;
 
 public class CitizenDAO extends AbstractHBDAO<String, Citizen> {
@@ -319,6 +320,11 @@ The provided `HBAdmin` class helps you programatically create/delete tables.
 You may instantiate the class using `Connection` object:
 
 ```java
+import org.apache.hadoop.hbase.client.Connection;
+import com.flipkart.hbaseobjectmapper.HBAdmin;
+
+// some code
+
 HBAdmin hbAdmin = new HBAdmin(connection);
 ```
 
@@ -414,16 +420,19 @@ Google's [Cloud Bigtable](https://cloud.google.com/bigtable) provides first-clas
 
 This library can be used as a **Bigtable ORM** in 3 simple steps:
 1. Add following to your dependencies:
-    * [bigtable-hbase-2.x](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x) or [bigtable-hbase-2.x-shaded](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x-shaded)
+    * [bigtable-hbase-2.x](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x) or [bigtable-hbase-2.x-shaded](https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-2.x-shaded), depending on your requirement
     * This library
-2. Instantiate `Connection` class as below:
+2. Instantiate HBase client's `Connection` class as below:
     ```java
     import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+    import org.apache.hadoop.hbase.client.Connection;
     // some code
     Connection connection = BigtableConfiguration.connect(projectId, instanceId);
     // some code
     ``` 
-3. Use the `Connection` instance as mentioned earlier
+3. Use `Connection` instance as mentioned earlier in this README, to create your DAO class
+
+That's it! Now you're all set to access Bigtable.
 
 ## License
 
