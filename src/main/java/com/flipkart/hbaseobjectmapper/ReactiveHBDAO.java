@@ -1,6 +1,8 @@
 package com.flipkart.hbaseobjectmapper;
 
 import com.flipkart.hbaseobjectmapper.codec.Codec;
+import com.flipkart.hbaseobjectmapper.exceptions.InvalidReadVersionsCountException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.AdvancedScanResultConsumer;
 import org.apache.hadoop.hbase.client.Append;
@@ -130,11 +132,10 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * @param rowKey             Row key
      * @param numVersionsToFetch Number of versions to be retrieved
      * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
-     * @throws IOException when the versions specified is invalid
      */
-    public CompletableFuture<T> get(@Nonnull final R rowKey, final int numVersionsToFetch) throws IOException {
+    public CompletableFuture<T> get(@Nonnull final R rowKey, final int numVersionsToFetch) {
 
-        final Get get = new Get(toBytes(rowKey)).readVersions(numVersionsToFetch);
+        final Get get = getGet(rowKey, numVersionsToFetch);
         return getHBaseTable()
                 .get(get)
                 .thenApply(mapResultToRecordType());
@@ -145,9 +146,8 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param rowKey Row key
      * @return HBase row, deserialized as object of your bean-like class (that implements {@link HBRecord})
-     * @throws IOException when HBase Get fails to be constructed, should not occur.
      */
-    public CompletableFuture<T> get(@Nonnull final R rowKey) throws IOException {
+    public CompletableFuture<T> get(@Nonnull final R rowKey) {
         return get(rowKey, 1);
     }
 
@@ -183,13 +183,12 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * @param rowKeys            Row keys to fetch
      * @param numVersionsToFetch Number of versions to be retrieved
      * @return Array of HBase rows, deserialized as object of your bean-like class (that implements {@link HBRecord})
-     * @throws IOException when the versions specified is invalid
      */
-    public Stream<CompletableFuture<T>> get(@Nonnull final R[] rowKeys, int numVersionsToFetch) throws IOException {
+    public Stream<CompletableFuture<T>> get(@Nonnull final R[] rowKeys, int numVersionsToFetch) {
 
         final List<Get> gets = new ArrayList<>(rowKeys.length);
         for (final R rowKey : rowKeys) {
-            gets.add(new Get(toBytes(rowKey)).readVersions(numVersionsToFetch));
+            gets.add(getGet(rowKey, numVersionsToFetch));
         }
 
         return getOnGets(gets);
@@ -200,9 +199,8 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      *
      * @param rowKeys Row keys to fetch
      * @return Array of HBase rows, deserialized as object of your bean-like class (that implements {@link HBRecord})
-     * @throws IOException When HBase call fails
      */
-    public Stream<CompletableFuture<T>> get(@Nonnull final R[] rowKeys) throws IOException {
+    public Stream<CompletableFuture<T>> get(@Nonnull final R[] rowKeys) {
         return get(rowKeys, 1);
     }
 
@@ -743,5 +741,13 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      */
     public AsyncTable<AdvancedScanResultConsumer> getHBaseTable() {
         return connection.getTable(hbTable.getName());
+    }
+
+    private Get getGet(final R rowKey, final int numVersionsToFetch) {
+        try {
+            return new Get(toBytes(rowKey)).readVersions(numVersionsToFetch);
+        } catch (IOException e) {
+            throw new InvalidReadVersionsCountException(e.getMessage());
+        }
     }
 }
