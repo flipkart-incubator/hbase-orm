@@ -52,6 +52,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <version.hbase>2.2.3.ACROMANTULA-SNAPSHOT</version.hbase>
         <jackson-version>2.11.0</jackson-version>
+        <version.junit>5.6.2</version.junit>
+        <version.guava>25.0-jre</version.guava>
     </properties>
     <distributionManagement>
         <repository>
@@ -97,7 +99,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>29.0-jre</version>
+            <version>${version.guava}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hbase</groupId>
@@ -132,7 +134,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.6.2</version>
+            <version>${version.junit}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>${version.junit}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -225,7 +233,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.0.0-M5</version>
+                <configuration>
+                    <forkCount>2</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

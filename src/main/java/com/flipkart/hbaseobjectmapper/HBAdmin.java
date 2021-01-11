@@ -1,35 +1,24 @@
 package com.flipkart.hbaseobjectmapper;
 
-import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.AsyncConnection;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
 
-/**
- * A minimal administrative API (wrapper over HBase's {@link Admin})
- */
-public class HBAdmin {
-    private final Connection connection;
-
+public interface HBAdmin {
     /**
-     * Constructs {@link HBAdmin} object
+     * Creates a namespace.
      *
-     * @param connection HBase connection
+     * @param namespace a namespace name
+     * @throws IOException on hbase error
      */
-    public HBAdmin(Connection connection) {
-        this.connection = connection;
-    }
-
-    public void createNamespace(String namespace) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            admin.createNamespace(
-                    NamespaceDescriptor.create(namespace).build());
-        }
-    }
+    void createNamespace(String namespace) throws IOException;
 
     /**
      * Create table represented by the class
@@ -40,19 +29,7 @@ public class HBAdmin {
      * @throws IOException When HBase call fails
      * @see Admin#createTable(TableDescriptor)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void createTable(Class<T> hbRecordClass) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            WrappedHBTable<R, T> wrappedHBTable = new WrappedHBTable<>(hbRecordClass);
-            TableDescriptorBuilder tableDescriptorBuilder = TableDescriptorBuilder.newBuilder(wrappedHBTable.getName());
-            for (Map.Entry<String, Integer> e : wrappedHBTable.getFamiliesAndVersions().entrySet()) {
-                tableDescriptorBuilder.setColumnFamily(
-                        ColumnFamilyDescriptorBuilder.newBuilder(
-                                Bytes.toBytes(e.getKey())
-                        ).setMaxVersions(e.getValue()).build());
-            }
-            admin.createTable(tableDescriptorBuilder.build());
-        }
-    }
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void createTable(Class<T> hbRecordClass) throws IOException;
 
     /**
      * Deletes HBase table
@@ -63,12 +40,7 @@ public class HBAdmin {
      * @throws IOException When HBase call fails
      * @see Admin#deleteTable(TableName)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void deleteTable(Class<T> hbRecordClass) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            WrappedHBTable<R, T> wrappedHBTable = new WrappedHBTable<>(hbRecordClass);
-            admin.deleteTable(wrappedHBTable.getName());
-        }
-    }
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void deleteTable(Class<T> hbRecordClass) throws IOException;
 
     /**
      * Enable a
@@ -79,12 +51,7 @@ public class HBAdmin {
      * @throws IOException When HBase call fails
      * @see Admin#enableTable(TableName)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void enableTable(Class<T> hbRecordClass) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            WrappedHBTable<R, T> wrappedHBTable = new WrappedHBTable<>(hbRecordClass);
-            admin.enableTable(wrappedHBTable.getName());
-        }
-    }
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void enableTable(Class<T> hbRecordClass) throws IOException;
 
     /**
      * Disable a table
@@ -95,12 +62,7 @@ public class HBAdmin {
      * @throws IOException When HBase call fails
      * @see Admin#disableTable(TableName)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void disableTable(Class<T> hbRecordClass) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            WrappedHBTable<R, T> wrappedHBTable = new WrappedHBTable<>(hbRecordClass);
-            admin.disableTable(wrappedHBTable.getName());
-        }
-    }
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> void disableTable(Class<T> hbRecordClass) throws IOException;
 
     /**
      * Checks whether table exists
@@ -112,11 +74,22 @@ public class HBAdmin {
      * @throws IOException When HBase call fails
      * @see Admin#tableExists(TableName)
      */
-    public <R extends Serializable & Comparable<R>, T extends HBRecord<R>> boolean tableExists(Class<T> hbRecordClass) throws IOException {
-        try (Admin admin = connection.getAdmin()) {
-            WrappedHBTable<R, T> wrappedHBTable = new WrappedHBTable<>(hbRecordClass);
-            return admin.tableExists(wrappedHBTable.getName());
+    <R extends Serializable & Comparable<R>, T extends HBRecord<R>> boolean tableExists(Class<T> hbRecordClass) throws IOException;
+
+    /**
+     * Gets a HBAdmin instance given a connection.
+     *
+     * @param aConnection a connection instance
+     * @return a HBAdmin instance
+     * @throws UnsupportedOperationException if the connection class is unrecognized
+     */
+    static HBAdmin create(@Nonnull Object aConnection) {
+        if (aConnection instanceof Connection) {
+            return new SyncHBAdmin((Connection) aConnection);
+        } else if (aConnection instanceof AsyncConnection) {
+            return new AsyncHBAdmin((AsyncConnection) aConnection);
+        } else {
+            throw new UnsupportedOperationException("Unknown connection type: " + aConnection.getClass());
         }
     }
-
 }

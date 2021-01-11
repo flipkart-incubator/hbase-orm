@@ -148,6 +148,26 @@ public class CitizenDAO extends AbstractHBDAO<String, Citizen> {
 ```
 (see [CitizenDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/daos/CitizenDAO.java))
 
+Additionally, you can also create asynchronous DAO objects by extending `ReactiveHBDAO` as illustrated in the snippet below. Reactive DAOs are based on Java's
+`CompletableFuture` abstraction and require an `AsyncConnection` object to be supplied rather than `Connection`.
+
+```java
+import com.flipkart.hbaseobjectmapper.ReactiveHBDAO;
+import com.flipkart.hbaseobjectmapper.testcases.entities.Citizen;
+
+import org.apache.hadoop.hbase.client.AsyncConnection;
+
+public class CitizenDAO extends ReactiveHBDAO<String, Citizen> {
+// in above, String is the 'row type' of Citizen
+
+    public CitizenDAO(AsyncConnection connection) {
+        super(connection); // if you need to customize your codec, you may use super(connection, codec)
+        // alternatively, you can construct CitizenDAO by passing instance of 'org.apache.hadoop.conf.Configuration'
+    }
+}
+```
+(see [reactive/CitizenDAO.java](./src/test/java/com/flipkart/hbaseobjectmapper/testcases/daos/reactive/CitizenDAO.java))
+
 Once defined, you can instantiate your *data access object* as below:
 
 ```java
@@ -157,7 +177,7 @@ CitizenDAO citizenDao = new CitizenDAO(connection);
 (Details: [Connection](https://hbase.apache.org/2.0/apidocs/org/apache/hadoop/hbase/client/Connection.html)).
 So, it is recommended that you create `Connection` instance once and use it for the entire life cycle of your program across all the DAO classes that you create (such as above).
 
-Now, you can access, manipulate and persist records of `citizens` table as shown in below examples:
+Now, you can access, manipulate and persist records of `citizens` table as shown in below examples. Note that the signatures of the reactive DAO may differ; all operations return `CompletableFuture`s.
 
 Create new record:
 
@@ -317,7 +337,7 @@ Table citizenTable = citizenDao.getHBaseTable()
 ## Using this library for DDL operations
 The provided `HBAdmin` class helps you programatically create/delete tables.
 
-You may instantiate the class using `Connection` object:
+You may instantiate the class using `Connection` or `AsyncConnection` object:
 
 ```java
 import org.apache.hadoop.hbase.client.Connection;
@@ -325,7 +345,7 @@ import com.flipkart.hbaseobjectmapper.HBAdmin;
 
 // some code
 
-HBAdmin hbAdmin = new HBAdmin(connection);
+HBAdmin hbAdmin = HBAdmin.create(connection);
 ```
 
 Once instantiated, you may do the following DDL operations:

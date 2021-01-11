@@ -534,6 +534,7 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * Delete a row from an HBase table for a given row key
      *
      * @param rowKey row key to delete
+     * @return nothing or an error if the operation has failed
      */
     public CompletableFuture<Void> delete(@Nonnull final R rowKey) {
         final Delete delete = new Delete(toBytes(rowKey));
@@ -545,6 +546,7 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * Delete HBase row by object (of class that implements {@link HBRecord}
      *
      * @param record Object to delete
+     * @return nothing or an error if the operation has failed
      */
     public CompletableFuture<Void> delete(@Nonnull final T record) {
         return this.delete(record.composeRowKey());
@@ -554,6 +556,7 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * Delete HBase rows for an array of row keys
      *
      * @param rowKeys row keys to delete
+     * @return a stream of void results or error if the corresponding operation has failed
      */
     public Stream<CompletableFuture<Void>> delete(@Nonnull final R[] rowKeys) {
         final List<Delete> deletes = new ArrayList<>(rowKeys.length);
@@ -569,6 +572,7 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * Delete HBase rows by object references
      *
      * @param records Records to delete
+     * @return a stream of void results or error if the corresponding operation has failed
      */
     public Stream<CompletableFuture<Void>> delete(@Nonnull final List<T> records) {
         final List<Delete> deletes = new ArrayList<>(records.size());
@@ -626,6 +630,19 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
 
         return fetchFieldValues(startRowKey, endRowKey, fieldName, 1)
                 .thenApply(multiVersionedMap -> toSingleVersioned(multiVersionedMap, 10));
+    }
+
+    /**
+     * Fetch column values for a given array of row keys (bulk variant of method {@link #fetchFieldValue(Serializable, String) fetchFieldValue(R, String)})
+     *
+     * @param rowKeys   Array of row keys to fetch
+     * @param fieldName Name of the private variable of your bean-like object (of a class that implements {@link HBRecord}) whose corresponding column needs to be fetched
+     * @return Map of row key and column values
+     */
+    public CompletableFuture<Map<R, Object>> fetchFieldValues(R[] rowKeys, String fieldName) {
+
+        return fetchFieldValues(rowKeys, fieldName, 1)
+                .thenApply(multiVersionedMap -> toSingleVersioned(multiVersionedMap, rowKeys.length));
     }
 
     /**
@@ -705,18 +722,18 @@ public abstract class ReactiveHBDAO<R extends Serializable & Comparable<R>, T ex
      * Check whether specified rows exist or not
      *
      * @param rowKeys Row keys
-     * @return Array with <code>true</code>/<code>false</code> values corresponding to whether row with given row keys exist
+     * @return Stream of completable futures with <code>true</code>/<code>false</code> values corresponding to whether row with given row keys exist
      */
-    public boolean[] exists(R[] rowKeys) {
+    public Stream<CompletableFuture<Boolean>> exists(R[] rowKeys) {
         List<Get> gets = new ArrayList<>(rowKeys.length);
         for (R rowKey : rowKeys) {   
             gets.add(new Get(
                     toBytes(rowKey)
             ));
         }
-        try (Table table = getHBaseTable()) {
-            return table.exists(gets);
-        }
+        return getHBaseTable()
+                .exists(gets)
+                .stream();
     }
 
     /**

@@ -101,7 +101,7 @@ abstract class BaseHBDAO<R extends Serializable & Comparable<R>, T extends HBRec
     }
 
     /**
-     * Gets (native) {@link Increment} object for given row key, to be later used in {@link #increment(Increment)} method.
+     * Gets (native) {@link Increment} object for given row key, to be later used in increment method.
      *
      * @param rowKey HBase row key
      * @return Increment object
@@ -111,7 +111,7 @@ abstract class BaseHBDAO<R extends Serializable & Comparable<R>, T extends HBRec
     }
 
     /**
-     * Gets HBase's (native) {@link Append} object for given row key, to be later used in {@link #append(Append)} method.
+     * Gets HBase's (native) {@link Append} object for given row key, to be later used in append method.
      *
      * @param rowKey HBase row key
      * @return HBase's {@link Append} object

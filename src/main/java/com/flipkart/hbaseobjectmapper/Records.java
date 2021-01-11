@@ -4,7 +4,7 @@ import java.io.Closeable;
 import java.io.Serializable;
 
 /**
- * This class is the return type of all 'records' methods of {@link AbstractHBDAO} & {@link ReactiveHBDAO} classes, which enable you to iterate over large number of records
+ * This class is the return type of all 'records' methods of {@link AbstractHBDAO} &amp; {@link ReactiveHBDAO} classes, which enable you to iterate over large number of records
  * (e.g. {@link AbstractHBDAO#records(Serializable, Serializable) AbstractHBDAO.records(R, R)}).
  * <br><br>
  * Users of this library are <u>not</u> expected to instantiate this class on their own.
