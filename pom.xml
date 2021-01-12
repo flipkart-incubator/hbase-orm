@@ -12,7 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.19-SNAPSHOT</version>
+    <version>1.19</version>
     <url>https://github.com/flipkart-incubator/hbase-orm</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-orm</url>
@@ -50,7 +50,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <version.hbase>2.2.3.ACROMANTULA-SNAPSHOT</version.hbase>
+        <version.hbase>2.2.3</version.hbase>
         <jackson-version>2.11.0</jackson-version>
         <version.junit>5.6.2</version.junit>
         <version.guava>25.0-jre</version.guava>
@@ -61,24 +61,6 @@
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
-    <repositories>
-        <repository>
-        <id>flipkart.artifactory</id>
-        <name>Flipkart Artifactory</name>
-        <url>http://artifactory.fkinternal.com/artifactory/v1.0/artifacts/libs-release-local</url>
-        <snapshots>
-            <enabled>false</enabled>
-        </snapshots>
-    </repository>
-    <repository>
-        <id>flipkart.artifactory.snapshots</id>
-        <name>Flipkart Artifactory (Snapshots)</name>
-        <url>http://artifactory.fkinternal.com/artifactory/v1.0/artifacts/libs-snapshots-local</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-    </repositories>
     <dependencies>
         <!-- Application dependencies -->
         <dependency>

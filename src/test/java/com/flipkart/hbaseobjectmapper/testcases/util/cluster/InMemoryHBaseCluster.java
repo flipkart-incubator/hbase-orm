@@ -8,7 +8,11 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.flipkart.hbaseobjectmapper.testcases.util.cluster.RealHBaseCluster.USE_REAL_HBASE;
