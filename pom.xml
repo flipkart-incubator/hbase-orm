@@ -12,7 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.flipkart</groupId>
     <artifactId>hbase-object-mapper</artifactId>
-    <version>1.18</version>
+    <version>1.19</version>
     <url>https://github.com/flipkart-incubator/hbase-orm</url>
     <scm>
         <url>https://github.com/flipkart-incubator/hbase-orm</url>
@@ -35,12 +35,25 @@
             <organization>Flipkart</organization>
             <organizationUrl>https://www.flipkart.com</organizationUrl>
         </developer>
+        <developer>
+            <id>amrith92</id>
+            <name>Shroff Amrith Nayak</name>
+            <email>amrith92(plus)gh(at)gmail(dot)com</email>
+            <roles>
+                <role>design</role>
+                <role>development</role>
+            </roles>
+            <organization>Flipkart</organization>
+            <organizationUrl>https://www.flipkart.com</organizationUrl>
+        </developer>
     </developers>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <version.hbase>2.0.6</version.hbase>
-        <jackson-version>2.10.4</jackson-version>
+        <version.hbase>2.2.3</version.hbase>
+        <jackson-version>2.11.0</jackson-version>
+        <version.junit>5.6.2</version.junit>
+        <version.guava>25.0-jre</version.guava>
     </properties>
     <distributionManagement>
         <repository>
@@ -68,7 +81,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>20.0</version>
+            <version>${version.guava}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hbase</groupId>
@@ -103,7 +116,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.6.2</version>
+            <version>${version.junit}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>${version.junit}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -196,7 +215,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.0.0-M5</version>
+                <configuration>
+                    <forkCount>2</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
