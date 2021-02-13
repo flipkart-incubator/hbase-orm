@@ -29,8 +29,8 @@
             <name>Manu Manjunath</name>
             <email>manu(dot)m(dot)karnataki(at)gmail(dot)com</email>
             <roles>
-                <role>design</role>
-                <role>development</role>
+                <role>Project Admin</role>
+                <role>Committer</role>
             </roles>
             <organization>Flipkart</organization>
             <organizationUrl>https://www.flipkart.com</organizationUrl>
@@ -40,8 +40,7 @@
             <name>Shroff Amrith Nayak</name>
             <email>amrith92(plus)gh(at)gmail(dot)com</email>
             <roles>
-                <role>design</role>
-                <role>development</role>
+                <role>Committer</role>
             </roles>
             <organization>Flipkart</organization>
             <organizationUrl>https://www.flipkart.com</organizationUrl>
@@ -79,14 +78,14 @@
             <version>${jackson-version}</version>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${version.guava}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
             <version>${version.hbase}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${version.guava}</version>
         </dependency>
         <!-- test dependencies -->
         <dependency>
@@ -191,7 +190,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.5</version>
+                <version>0.8.6</version>
                 <executions>
                     <execution>
                         <goals>
