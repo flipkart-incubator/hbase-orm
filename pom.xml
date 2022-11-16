@@ -50,7 +50,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <version.hbase>2.2.3</version.hbase>
-        <jackson-version>2.11.0</jackson-version>
+        <jackson-version>2.12.7.1</jackson-version>
         <version.junit>5.6.2</version.junit>
         <version.guava>25.0-jre</version.guava>
     </properties>
