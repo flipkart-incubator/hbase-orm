@@ -1,16 +1,12 @@
 # HBase ORM
 
-[![Build Status](https://api.travis-ci.org/flipkart-incubator/hbase-orm.svg?branch=main&status=passed)](https://travis-ci.org/github/flipkart-incubator/hbase-orm)
-[![Language grade: Java](https://img.shields.io/lgtm/grade/java/g/flipkart-incubator/hbase-orm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/flipkart-incubator/hbase-orm/context:java)
-[![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=main)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=master)
+[![build-and-test](https://github.com/flipkart-incubator/hbase-orm/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/flipkart-incubator/hbase-orm/actions/workflows/build-and-test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/flipkart-incubator/hbase-orm/badge.svg?branch=main)](https://coveralls.io/github/flipkart-incubator/hbase-orm?branch=main)
 [![Maven Central](https://img.shields.io/badge/sonatype-1.19-blue.svg)](https://oss.sonatype.org/content/repositories/releases/com/flipkart/hbase-object-mapper/1.19/)
 [![License](https://img.shields.io/badge/License-Apache%202-blue.svg)](./LICENSE.txt)
 
 ## Introduction
-HBase ORM is a light-weight, production-grade, thread-safe and performant library that enables:
-
-1. object-oriented access of HBase rows (Data Access Object) with minimal code and good testability.
-2. reading from and/or writing to HBase tables in Hadoop MapReduce jobs.
+HBase ORM is a light-weight, production-grade, thread-safe and performant library that enables object-oriented access of HBase rows (Data Access Object) with minimal code and good testability.
 
 This can also be used as an ORM for Bigtable. Scroll down till the relevant section to know how.
 
@@ -456,6 +452,6 @@ That's it! Now you're all set to access Bigtable.
 
 ## License
 
-Copyright 2020 Flipkart Internet Pvt Ltd.
+Copyright 2023 Flipkart Internet Pvt Ltd.
 
 Licensed under the [Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0) (the "License"). You may not use this product or its source code except in compliance with the License.
